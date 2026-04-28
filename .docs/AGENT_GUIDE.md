@@ -127,7 +127,39 @@ public class QuantidadeVagas {
 
 ---
 
-### 3. 📋 Mínimo de 3 Cenários BDD por Funcionalidade
+### 3. 🧩 Uma Entidade de Domínio por Funcionalidade
+
+Cada funcionalidade não trivial do sistema deve possuir **sua própria entidade de domínio**. É proibido reaproveitar uma entidade existente para cobrir responsabilidades de outra funcionalidade.
+
+Essa regra garante que cada contexto tenha seu modelo coeso, evitando entidades "faz-tudo" que acumulam atributos e comportamentos de múltiplas funcionalidades.
+
+**Errado:**
+```java
+// ❌ A entidade Evento acumula responsabilidades de inscrição, pagamento e certificado
+public class Evento {
+    private List<Participante> inscritos;    // ❌ responsabilidade de Inscrição
+    private boolean pagamentoConfirmado;     // ❌ responsabilidade de Pagamento
+    private String codigoCertificado;        // ❌ responsabilidade de Certificado
+}
+```
+
+**Correto:**
+```java
+// ✅ Cada funcionalidade tem sua própria entidade com responsabilidade clara
+public class Evento { ... }        // responsabilidade: representar o evento
+
+public class Inscricao { ... }     // responsabilidade: inscrição de participante
+
+public class Pagamento { ... }     // responsabilidade: controle de pagamento
+
+public class Certificado { ... }   // responsabilidade: emissão de certificado
+```
+
+> Se você sentir que precisa adicionar um campo a uma entidade existente para atender uma nova funcionalidade, esse é um sinal claro de que a nova funcionalidade precisa de sua **própria entidade**.
+
+---
+
+### 4. 📋 Mínimo de 3 Cenários BDD por Funcionalidade
 
 Cada funcionalidade deve ter **mais de 2 cenários de teste** (mínimo 3, recomendado 4+), cobrindo:
 
@@ -572,6 +604,31 @@ Funcionalidade: Realizar inscrição
     Dado ...
     Quando ...
     Então ...
+```
+
+### ❌ Reutilizar entidade existente para nova funcionalidade
+
+```java
+// ERRADO — empurrar responsabilidades novas em entidade existente
+public class Evento {
+    private String codigoCertificado;     // ❌ isso é responsabilidade de Certificado
+    private boolean pagamentoEfetuado;    // ❌ isso é responsabilidade de Pagamento
+}
+
+// CORRETO — criar entidade própria para cada funcionalidade
+public class Certificado {
+    private CertificadoId id;
+    private EventoId eventoId;
+    private ParticipanteId participanteId;
+    private CodigoCertificado codigo;
+
+    public Certificado(EventoId eventoId, ParticipanteId participanteId) {
+        Objects.requireNonNull(eventoId);
+        Objects.requireNonNull(participanteId);
+        this.codigo = CodigoCertificado.gerar();  // ✅ regra encapsulada na entidade
+        ...
+    }
+}
 ```
 
 ---

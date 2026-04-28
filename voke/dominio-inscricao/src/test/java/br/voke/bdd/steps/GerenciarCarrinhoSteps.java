@@ -1,117 +1,190 @@
 package br.voke.bdd.steps;
 
+import br.voke.dominio.inscricao.carrinho.Carrinho;
+import br.voke.dominio.inscricao.carrinho.CarrinhoId;
+import br.voke.dominio.inscricao.carrinho.ItemCarrinho;
+import br.voke.dominio.inscricao.carrinho.MetodoPagamento;
+import io.cucumber.java.Before;
 import io.cucumber.java.pt.Dado;
-import io.cucumber.java.pt.Quando;
 import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
-import br.voke.dominio.inscricao.carrinho.*;
-import br.voke.dominio.inscricao.excecao.*;
+import io.cucumber.java.pt.Quando;
 
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GerenciarCarrinhoSteps {
+    private final ContextoInscricao contexto;
     private Carrinho carrinho;
-    private Exception excecao;
     private BigDecimal valorFinal;
 
-    @Dado("que o participante está autenticado")
-    public void participanteAutenticado() { carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID()); excecao = null; valorFinal = null; }
+    public GerenciarCarrinhoSteps(ContextoInscricao contexto) {
+        this.contexto = contexto;
+    }
+
+    @Before
+    public void prepararCenario() {
+        carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID());
+        valorFinal = null;
+        contexto.excecao = null;
+    }
 
     @E("o carrinho possui menos de 2 eventos")
-    public void carrinhoComMenosDe2() { /* carrinho recém-criado */ }
+    public void carrinhoComMenosDe2() {
+        assertTrue(carrinho.getItens().size() < Carrinho.MAX_EVENTOS);
+    }
 
     @Quando("ele adiciona um ingresso de evento ao carrinho")
     public void eleAdicionaIngresso() {
-        try { carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Show da Banda", 1, new BigDecimal("50.00"))); } catch (Exception e) { excecao = e; }
+        try {
+            carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Show da Banda", 1, new BigDecimal("50.00")));
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
     }
 
     @Então("o ingresso é adicionado com sucesso")
-    public void oIngressoEAdicionado() { assertNull(excecao); assertEquals(1, carrinho.getItens().size()); }
+    public void oIngressoEAdicionado() {
+        assertNull(contexto.excecao);
+        assertEquals(1, carrinho.getItens().size());
+    }
 
     @Dado("que o participante já possui 2 eventos diferentes no carrinho")
-    public void participanteCom2Eventos() { carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID()); excecao = null;
+    public void participanteCom2Eventos() {
+        carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID());
+        contexto.excecao = null;
         carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Evento 1", 1, new BigDecimal("50.00")));
-        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Evento 2", 1, new BigDecimal("60.00"))); }
+        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Evento 2", 1, new BigDecimal("60.00")));
+    }
 
     @Quando("ele tenta adicionar um terceiro evento")
     public void eleTentaAdicionarTerceiro() {
-        try { carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Evento 3", 1, new BigDecimal("70.00"))); } catch (Exception e) { excecao = e; }
+        try {
+            carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Evento 3", 1, new BigDecimal("70.00")));
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
     }
 
     @Então("o sistema rejeita a adição")
-    public void oSistemaRejeitaAdicao() { assertNotNull(excecao); }
-
-    @E("exibe a mensagem {string}")
-    public void exibeMensagem(String msg) { assertNotNull(excecao); assertTrue(excecao.getMessage().contains(msg)); }
+    public void oSistemaRejeitaAdicao() {
+        assertNotNull(contexto.excecao);
+    }
 
     @Dado("que o participante possui itens no carrinho")
-    public void participanteComItens() { carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID()); excecao = null;
-        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Show", 2, new BigDecimal("50.00"))); }
+    public void participanteComItens() {
+        carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID());
+        contexto.excecao = null;
+        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Show", 2, new BigDecimal("50.00")));
+    }
 
     @Quando("ele escolhe PIX como forma de pagamento e finaliza a compra")
-    public void eleEscolhePix() { valorFinal = carrinho.calcularTotal(MetodoPagamento.PIX); }
+    public void eleEscolhePix() {
+        valorFinal = carrinho.calcularTotal(MetodoPagamento.PIX);
+    }
 
     @Então("o valor cobrado é exatamente o valor dos ingressos sem acréscimos")
-    public void valorSemAcrescimos() { assertEquals(0, new BigDecimal("100.00").compareTo(valorFinal)); }
+    public void valorSemAcrescimos() {
+        assertEquals(0, new BigDecimal("100.00").compareTo(valorFinal));
+    }
 
     @Quando("ele escolhe cartão de crédito como forma de pagamento")
-    public void eleEscolheCartao() { valorFinal = carrinho.calcularTotal(MetodoPagamento.CARTAO_CREDITO); }
+    public void eleEscolheCartao() {
+        valorFinal = carrinho.calcularTotal(MetodoPagamento.CARTAO_CREDITO);
+    }
 
     @Então("o sistema aplica a taxa correspondente ao valor total")
-    public void oSistemaAplicaTaxa() { assertTrue(valorFinal.compareTo(new BigDecimal("100.00")) > 0); }
+    public void oSistemaAplicaTaxa() {
+        assertTrue(valorFinal.compareTo(new BigDecimal("100.00")) > 0);
+    }
 
     @E("exibe o valor final com a taxa antes da confirmação")
-    public void exibeValorFinalComTaxa() { assertEquals(0, new BigDecimal("105.00").compareTo(valorFinal)); }
+    public void exibeValorFinalComTaxa() {
+        assertEquals(0, new BigDecimal("105.00").compareTo(valorFinal));
+    }
 
     @E("o cupom é válido e não foi utilizado pelo CPF do participante")
-    public void cupomValidoNaoUsado() { /* contexto */ }
+    public void cupomValidoNaoUsado() {
+        assertNull(carrinho.getCupomAplicado());
+    }
 
     @Quando("ele aplica o cupom no carrinho")
     public void eleAplicaCupom() {
-        try { carrinho.aplicarCupom("PROMO10", new BigDecimal("10.00")); } catch (Exception e) { excecao = e; }
+        try {
+            carrinho.aplicarCupom("PROMO10", new BigDecimal("10.00"));
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
     }
 
     @Então("o desconto do cupom é refletido no valor total")
-    public void oDescontoERefletido() { assertNull(excecao); BigDecimal total = carrinho.calcularTotal(MetodoPagamento.PIX); assertEquals(0, new BigDecimal("90.00").compareTo(total)); }
+    public void oDescontoERefletido() {
+        assertNull(contexto.excecao);
+        BigDecimal total = carrinho.calcularTotal(MetodoPagamento.PIX);
+        assertEquals(0, new BigDecimal("90.00").compareTo(total));
+    }
 
     @Dado("que o participante já aplicou um cupom no carrinho")
-    public void participanteComCupomAplicado() { carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID()); excecao = null;
+    public void participanteComCupomAplicado() {
+        carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID());
+        contexto.excecao = null;
         carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Show", 1, new BigDecimal("100.00")));
-        carrinho.aplicarCupom("PROMO10", new BigDecimal("10.00")); }
+        carrinho.aplicarCupom("PROMO10", new BigDecimal("10.00"));
+    }
 
     @Quando("ele tenta aplicar um segundo cupom")
     public void eleTentaAplicarSegundoCupom() {
-        try { carrinho.aplicarCupom("OUTRO20", new BigDecimal("20.00")); } catch (Exception e) { excecao = e; }
+        try {
+            carrinho.aplicarCupom("OUTRO20", new BigDecimal("20.00"));
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
     }
 
     @Quando("ele tenta aplicar um cupom expirado ou inexistente")
     public void eleTentaAplicarCupomInvalido() {
-        excecao = new IllegalArgumentException("Cupom inválido ou expirado");
+        contexto.excecao = new IllegalArgumentException("Cupom inválido ou expirado");
     }
 
     @Então("o sistema rejeita o cupom")
-    public void oSistemaRejeitaCupom() { assertNotNull(excecao); }
+    public void oSistemaRejeitaCupom() {
+        assertNotNull(contexto.excecao);
+    }
 
     @Quando("ele remove um item")
     public void eleRemoveItem() {
         UUID eventoId = carrinho.getItens().get(0).getEventoId();
         carrinho.removerItem(eventoId);
+        valorFinal = carrinho.calcularTotal(MetodoPagamento.PIX);
     }
 
     @Então("o item é removido e o valor total é recalculado")
-    public void oItemERemovidoEValorRecalculado() { assertTrue(carrinho.getItens().isEmpty()); }
+    public void oItemERemovidoEValorRecalculado() {
+        assertTrue(carrinho.getItens().isEmpty());
+        assertEquals(0, BigDecimal.ZERO.compareTo(valorFinal));
+    }
 
     @Dado("que o participante finalizou a compra com 2 eventos no carrinho")
-    public void participanteFinalizouCompra() { carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID()); excecao = null;
+    public void participanteFinalizouCompra() {
+        carrinho = new Carrinho(CarrinhoId.novo(), UUID.randomUUID());
+        contexto.excecao = null;
         carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Ev1", 1, new BigDecimal("50.00")));
-        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Ev2", 1, new BigDecimal("60.00"))); }
+        carrinho.adicionarItem(new ItemCarrinho(UUID.randomUUID(), "Ev2", 1, new BigDecimal("60.00")));
+    }
 
     @Quando("a compra é confirmada")
-    public void aCompraEConfirmada() { carrinho.limpar(); }
+    public void aCompraEConfirmada() {
+        carrinho.limpar();
+    }
 
     @Então("o carrinho é esvaziado e o participante pode adicionar novos eventos")
-    public void oCarrinhoEEsvaziado() { assertTrue(carrinho.getItens().isEmpty()); }
+    public void oCarrinhoEEsvaziado() {
+        assertTrue(carrinho.getItens().isEmpty());
+        assertNull(carrinho.getCupomAplicado());
+    }
 }

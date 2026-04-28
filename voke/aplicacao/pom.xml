@@ -29,5 +29,9 @@
             <artifactId>voke-dominio-pessoa</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>voke-dominio-fidelidade</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
-</project>

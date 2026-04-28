@@ -56,12 +56,13 @@ A ordem abaixo reduz retrabalho. Primeiro fechamos regras locais de domínio; de
 | Onda | Foco | Por que vem nessa ordem |
 |---|---|---|
 | 0 | Baseline e padronização dos testes | Garantir que qualquer mudança parte de build verde. |
+| 0.5 | Decisões semânticas obrigatórias | Resolver divergências entre documento e código antes de implementar regras ambíguas. |
 | 1 | Pessoa e identidade | CPF, senha, soft delete, perfis e permissões impactam vários fluxos. |
 | 2 | Evento, inscrição e carrinho | Núcleo transacional da plataforma: evento, estoque, checkout e cancelamento. |
 | 3 | Cupom, carteira, pontos e recompensas | Regras financeiras e de fidelidade dependem do checkout. |
 | 4 | Social: grupos, amigos, comunidades e parceiros | Dependem de pessoa, evento, inscrição e carteira. |
-| 5 | Notificações, favoritos e sugestões | Regras reativas e de leitura/histórico. |
-| 6 | Infraestrutura: transações, locks, jobs, auditoria e hash | Materializa garantias que o domínio descreve por portas. |
+| 5 | Avaliações, notificações, favoritos e sugestões | Regras reativas, de leitura/histórico e reputação. |
+| 6 | Consolidação de infraestrutura: transações, locks, jobs, auditoria e hash | Materializa garantias que ainda não tiverem sido fechadas junto das ondas funcionais. |
 | 7 | Revisão final de rastreabilidade | Provar que cada RN tem cenário, implementação e validação. |
 
 ## Onda 0 - Baseline e padronização
@@ -83,6 +84,24 @@ A ordem abaixo reduz retrabalho. Primeiro fechamos regras locais de domínio; de
 
 - Todos os testes existentes passam.
 - Nenhuma mudança funcional feita ainda.
+
+## Onda 0.5 - Decisões semânticas obrigatórias
+
+Antes de iniciar as ondas funcionais, resolver e registrar as divergências entre `.docs/Funcionalidades.md` e o código atual. Essas decisões evitam retrabalho e impedem que cenários BDD sejam escritos contra interpretações diferentes da regra.
+
+### Decisões
+
+- Avaliação duplicada: a segunda avaliação deve editar a avaliação existente, conforme o documento, ou continuar rejeitando duplicidade?
+- Nome duplicado de evento: bloquear qualquer evento com mesmo nome ou apenas evento ativo/publicado?
+- Limite por CPF: modelar `Cpf` explicitamente no fluxo de inscrição/carrinho ou assumir equivalência 1:1 entre `ParticipanteId` e CPF?
+- Remoção de notificações/cupons/recompensas: exclusão física, inativação ou soft delete com histórico?
+- Regras de infraestrutura críticas: implementar junto da onda funcional quando forem parte da garantia da RN, ou deixar apenas a consolidação final para a Onda 6?
+
+### Critério de pronto
+
+- Decisões registradas no relatório da entrega ou em documento de rastreabilidade.
+- Cenários BDD novos refletem a decisão adotada.
+- Nenhuma regra ambígua é implementada sem decisão explícita.
 
 ## Onda 1 - Pessoa e identidade
 
@@ -164,7 +183,7 @@ Plano:
 - Ajustar `EventoRepositorio` para diferenciar `existeAtivoPorNome`.
 - Modelar estado/expiração de `Lote` com data final ou regra de esgotamento.
 - Criar evento de domínio ou resultado de caso de uso para `EventoCancelado`.
-- Implementar `CancelarEventoUseCase` em `aplicacao`:
+- Criar ou evoluir `CancelarEventoUseCase` em `aplicacao`:
   - cancela evento.
   - busca inscrições ativas.
   - cancela inscrições.
@@ -201,7 +220,7 @@ Plano:
 - Introduzir porta `ParticipanteConsulta` retornando data de nascimento/CPF.
 - Introduzir porta `EventoConsulta` retornando idade mínima, período, status e lote.
 - Trocar parâmetros soltos de `InscricaoServico.realizar` por comando/DTO de domínio mais explícito.
-- Criar `FinalizarInscricaoUseCase` em `aplicacao` para coordenar:
+- Criar ou evoluir `FinalizarInscricaoUseCase` em `aplicacao` para coordenar:
   - participante.
   - evento/lote.
   - conflito de agenda.
@@ -238,7 +257,7 @@ Plano:
 - Criar porta `Relogio` para testar TTL sem depender de `LocalDateTime.now()` diretamente.
 - Criar porta `CupomConsulta` para validar código, vigência, escopo e uso.
 - `Carrinho` deve guardar dados suficientes do lote: `loteId`, preço cotado, momento da reserva.
-- Caso de uso `AtualizarCarrinhoUseCase` deve detectar virada de lote e exigir atualização de preço.
+- Criar ou evoluir caso de uso `AtualizarCarrinhoUseCase` para detectar virada de lote e exigir atualização de preço.
 - Implementar expiração em infraestrutura via job ou serviço agendado.
 
 BDD:
@@ -272,7 +291,7 @@ Plano:
 - Adicionar método `aplicavelAoEvento(eventoId, organizadorId)`.
 - Criar `UsoCupom` ou registrar usos por CPF de forma persistível.
 - Alterar remoção para inativação quando houver uso.
-- Integrar cupom com `FinalizarCheckoutUseCase`.
+- Criar ou evoluir `FinalizarCheckoutUseCase` para integrar cupom ao checkout.
 
 BDD:
 
@@ -330,7 +349,7 @@ Regras pendentes ou parciais:
 Plano:
 
 - Trocar saldo simples por lotes de pontos ou lançamentos com data de expiração.
-- Criar `CreditarPontosPorPresencaUseCase` consultando evento e inscrição.
+- Criar ou evoluir `CreditarPontosPorPresencaUseCase` consultando evento e inscrição.
 - Criar job de expiração em infraestrutura.
 - Criar `ExtratoPontos`.
 
@@ -358,7 +377,7 @@ Regras pendentes ou parciais:
 
 Plano:
 
-- Criar `ResgatarRecompensaUseCase`.
+- Criar ou evoluir `ResgatarRecompensaUseCase`.
 - Em domínio, manter `Recompensa.resgatar` e `ContaPontos.debitar`.
 - Em aplicação, coordenar os dois com transação.
 - Em infraestrutura, usar lock/versionamento na recompensa.
@@ -391,7 +410,7 @@ Regras pendentes ou parciais:
 Plano:
 
 - Adicionar dono do evento como consulta obrigatória no caso de uso.
-- Criar `GerenciarGrupoEventoUseCase` em aplicação.
+- Criar ou evoluir `GerenciarGrupoEventoUseCase` em aplicação.
 - Criar listener/use case para `InscricaoCancelada` removendo membro do grupo.
 - Criar rotina/job para encerramento de grupos após fim do evento.
 
@@ -423,7 +442,7 @@ Plano:
 - Alterar `AmizadeServico.enviarSolicitacao` para receber/consultar ambos os participantes.
 - Em comunidade, modelar apenas cards de evento, sem mensagem livre.
 - Criar porta `EventoDisponibilidadeConsulta`.
-- Criar caso de uso `DesfazerAmizadeUseCase` removendo o participante das comunidades relacionadas.
+- Criar ou evoluir caso de uso `DesfazerAmizadeUseCase` removendo o participante das comunidades relacionadas.
 
 BDD:
 
@@ -451,7 +470,7 @@ Plano:
 - Tornar `AtividadeParceiro` mais explícita e associar permissões a ações.
 - Criar `AutorizacaoParceiroServico` no domínio ou aplicação.
 - Integrar cupom de parceiro ao checkout.
-- Criar `CreditarComissaoParceiroUseCase` após pagamento confirmado.
+- Criar ou evoluir `CreditarComissaoParceiroUseCase` após pagamento confirmado.
 - Criar estorno de comissão quando compra for cancelada.
 
 BDD:
@@ -468,7 +487,40 @@ Validação:
 .\mvnw.cmd -f voke\pom.xml -pl aplicacao,infraestrutura -am test
 ```
 
-## Onda 5 - Notificações, favoritos e sugestões
+## Onda 5 - Avaliações, notificações, favoritos e sugestões
+
+### 6. Gerenciar Avaliação
+
+Regras pendentes ou parciais:
+
+- RN01 - Segunda avaliação deve ser tratada conforme decisão da Onda 0.5.
+- RN02 - Evento finalizado e inscrição confirmada devem vir de consultas reais, não de booleans soltos.
+- RN03 - Organizador dono do evento deve ter acesso somente leitura.
+- Consulta de avaliações e média geral precisam respeitar o histórico do evento.
+
+Plano:
+
+- Ajustar `AvaliacaoServico` para aplicar a decisão sobre duplicidade: editar avaliação existente ou rejeitar explicitamente.
+- Criar ou evoluir `AvaliarEventoCasoDeUso` para consultar status do evento e status da inscrição por portas explícitas.
+- Criar porta `EventoAvaliacaoConsulta` para validar se o evento está finalizado/encerrado e quem é o organizador dono.
+- Criar porta `InscricaoAvaliacaoConsulta` para validar inscrição confirmada ou check-in, conforme regra final adotada.
+- Bloquear edição/exclusão de avaliação quando o ator for organizador.
+- Adicionar consulta de média/listagem sem permitir mutação externa pelo organizador.
+
+BDD:
+
+- segunda avaliação do mesmo participante atualiza ou rejeita conforme decisão documentada.
+- evento não finalizado bloqueia avaliação.
+- participante sem inscrição confirmada não avalia.
+- organizador consegue consultar avaliações, mas não editar nem excluir.
+- média do evento considera apenas avaliações válidas.
+
+Validação:
+
+```powershell
+.\mvnw.cmd -f voke\pom.xml -pl dominio-evento,dominio-inscricao -am test
+.\mvnw.cmd -f voke\pom.xml -pl aplicacao -am test
+```
 
 ### 7. Gerenciar Notificações
 
@@ -567,7 +619,16 @@ Validação:
 
 ## Onda 6 - Infraestrutura técnica
 
-Esta onda não deve contaminar os módulos de domínio. Ela deve implementar as portas definidas nas ondas anteriores.
+Esta onda não deve contaminar os módulos de domínio. Ela consolida as portas definidas nas ondas anteriores, mas não significa que toda infraestrutura deve esperar até o fim. Quando uma regra depender de garantia técnica para ser verdadeira, a infraestrutura mínima deve ser entregue junto da própria onda funcional.
+
+Exemplos de infraestrutura que deve nascer junto da regra:
+
+- Hash de senha junto de participante/identidade.
+- Constraint única de favorito junto de favoritos.
+- Lock/versionamento de lote junto de inscrição/carrinho.
+- Transação de checkout junto de carteira, inscrição e cupom.
+- Lock/versionamento de recompensa junto de resgate.
+- Jobs de expiração quando a RN exigir comportamento automático, não apenas método manual.
 
 ### Persistência e constraints
 
@@ -647,7 +708,7 @@ Use este checklist a cada regra:
 - Nem toda regra deve ir para entidade. Regras como cancelamento em cascata, checkout, estorno, comissão, expiração e notificações são casos de uso ou infraestrutura.
 - Não resolver regra sistêmica com boolean solto no teste. Booleans são aceitáveis em steps provisórios, mas a entrega final deve preferir portas e consultas explícitas.
 - Evitar refatorações cosméticas durante a implementação das regras. Cada onda deve alterar apenas os módulos necessários.
-- Quando uma regra documental divergir do código atual, decidir e registrar antes de implementar. Casos já identificados:
+- As divergências documentais devem estar resolvidas na Onda 0.5 antes de implementar cenários e código. Casos já identificados:
   - Avaliação duplicada: rejeitar ou editar avaliação existente?
   - Nome duplicado de evento: bloquear qualquer status ou apenas ativo?
   - Limite por CPF: modelar `Cpf` explicitamente ou assumir `ParticipanteId`?

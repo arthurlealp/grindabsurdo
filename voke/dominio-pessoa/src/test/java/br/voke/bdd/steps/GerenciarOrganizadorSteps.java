@@ -16,11 +16,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GerenciarOrganizadorSteps {
 
-    private OrganizadorRepositorio repositorio;
-    private OrganizadorServico servico;
-    private Organizador organizador;
-    private Exception excecao;
+    private final ContextoPessoa ctx;
     private final Map<OrganizadorId, Organizador> banco = new HashMap<>();
+
+    public GerenciarOrganizadorSteps(ContextoPessoa ctx) {
+        this.ctx = ctx;
+    }
 
     private OrganizadorRepositorio criarRepositorioEmMemoria() {
         return new OrganizadorRepositorio() {
@@ -33,119 +34,90 @@ public class GerenciarOrganizadorSteps {
             @Override public boolean existePorEmail(Email email) {
                 return banco.values().stream().anyMatch(o -> o.getEmail().equals(email));
             }
+            @Override public Optional<Organizador> buscarPorEmail(Email email) {
+                return banco.values().stream().filter(o -> o.getEmail().equals(email)).findFirst();
+            }
+            @Override public Optional<Organizador> buscarPorCpf(Cpf cpf) {
+                return banco.values().stream().filter(o -> o.getCpf().equals(cpf)).findFirst();
+            }
         };
     }
 
-    @Dado("que um usuário deseja se cadastrar como organizador")
-    public void queUmUsuarioDesejaSeCadastrarComoOrganizador() {
+    private void inicializar() {
         banco.clear();
-        repositorio = criarRepositorioEmMemoria();
-        servico = new OrganizadorServico(repositorio);
-        excecao = null;
-        organizador = null;
+        ctx.repoOrganizador = criarRepositorioEmMemoria();
+        ctx.servicoOrganizador = new OrganizadorServico(ctx.repoOrganizador);
+        ctx.atorAtual = ContextoPessoa.Ator.ORGANIZADOR;
+        ctx.excecao = null;
+        ctx.organizador = null;
     }
+
+    @Dado("que um usuário deseja se cadastrar como organizador")
+    public void queUmUsuarioDesejaSeCadastrarComoOrganizador() { inicializar(); }
 
     @Quando("ele preenche os dados com CPF válido, e-mail único e data de nascimento comprovando 18 anos ou mais")
     public void elePreencheComDadosValidos() {
         try {
-            organizador = servico.cadastrar(
+            ctx.organizador = ctx.servicoOrganizador.cadastrar(
                     new NomeCompleto("Carlos Organizador"),
                     new Cpf("529.982.247-25"),
                     new Email("carlos@email.com"),
                     new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(1990, 1, 1))
-            );
-        } catch (Exception e) { excecao = e; }
+                    new DataNascimento(LocalDate.of(1990, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("a conta de organizador é criada com sucesso")
     public void aContaDeOrganizadorECriadaComSucesso() {
-        assertNull(excecao);
-        assertNotNull(organizador);
+        assertNull(ctx.excecao);
+        assertNotNull(ctx.organizador);
     }
 
     @Quando("ele preenche os dados com uma data de nascimento indicando menos de 18 anos")
     public void elePreencheComMenosDe18Anos() {
         try {
-            organizador = servico.cadastrar(
+            ctx.organizador = ctx.servicoOrganizador.cadastrar(
                     new NomeCompleto("Jovem Organizador"),
                     new Cpf("529.982.247-25"),
                     new Email("jovem@email.com"),
                     new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.now().minusYears(16))
-            );
-        } catch (Exception e) { excecao = e; }
-    }
-
-    @Quando("ele preenche os dados com um CPF inválido")
-    public void elePreencheComCpfInvalidoOrg() {
-        try {
-            organizador = servico.cadastrar(
-                    new NomeCompleto("Carlos Organizador"),
-                    new Cpf("000.000.000-00"),
-                    new Email("carlos@email.com"),
-                    new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(1990, 1, 1))
-            );
-        } catch (Exception e) { excecao = e; }
+                    new DataNascimento(LocalDate.now().minusYears(16)));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Quando("ele informa um e-mail que já existe no sistema")
     public void eleInformaEmailJaExistente() {
         try {
-            servico.cadastrar(new NomeCompleto("Primeiro"), new Cpf("529.982.247-25"),
+            ctx.servicoOrganizador.cadastrar(new NomeCompleto("Primeiro"), new Cpf("529.982.247-25"),
                     new Email("existente@email.com"), new Senha("Senha@123"),
                     new DataNascimento(LocalDate.of(1990, 1, 1)));
-            organizador = servico.cadastrar(new NomeCompleto("Segundo"), new Cpf("418.236.780-90"),
+            ctx.organizador = ctx.servicoOrganizador.cadastrar(new NomeCompleto("Segundo"), new Cpf("111.444.777-35"),
                     new Email("existente@email.com"), new Senha("Senha@123"),
                     new DataNascimento(LocalDate.of(1991, 1, 1)));
-        } catch (Exception e) { excecao = e; }
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Dado("que o organizador está autenticado no sistema")
     public void queOOrganizadorEstaAutenticado() {
-        banco.clear();
-        repositorio = criarRepositorioEmMemoria();
-        servico = new OrganizadorServico(repositorio);
-        excecao = null;
-        organizador = servico.cadastrar(
+        inicializar();
+        ctx.organizador = ctx.servicoOrganizador.cadastrar(
                 new NomeCompleto("Carlos Organizador"),
                 new Cpf("529.982.247-25"),
                 new Email("carlos@email.com"),
                 new Senha("Senha@123"),
-                new DataNascimento(LocalDate.of(1990, 1, 1))
-        );
+                new DataNascimento(LocalDate.of(1990, 1, 1)));
     }
 
     @Quando("ele altera campos permitidos como nome ou telefone")
     public void eleAlteraCamposPermitidosOrganizador() {
         try {
-            servico.atualizarDados(organizador.getId(), new NomeCompleto("Carlos Atualizado"), new Email("novo@email.com"));
-        } catch (Exception e) { excecao = e; }
-    }
-
-    @Quando("ele tenta alterar sua data de nascimento")
-    public void eleTentaAlterarDataNascimentoOrg() {
-        try {
-            organizador.alterarDataNascimento(new DataNascimento(LocalDate.of(1985, 1, 1)));
-        } catch (Exception e) { excecao = e; }
-    }
-
-    @Quando("ele solicita a remoção da sua conta")
-    public void eleSolicitaRemocaoOrg() {
-        try {
-            servico.remover(organizador.getId());
-        } catch (Exception e) { excecao = e; }
-    }
-
-    @Então("a conta é removida do sistema")
-    public void aContaERemovidaDoSistemaOrg() {
-        assertNull(excecao);
-        assertFalse(repositorio.buscarPorId(organizador.getId()).isPresent());
+            ctx.servicoOrganizador.atualizarDados(ctx.organizador.getId(),
+                    new NomeCompleto("Carlos Atualizado"), new Email("novo@email.com"));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @E("o organizador não consegue mais fazer login")
     public void oOrganizadorNaoConsegueMaisFazerLogin() {
-        assertTrue(!banco.containsKey(organizador.getId()));
+        assertFalse(ctx.repoOrganizador.buscarPorId(ctx.organizador.getId()).isPresent());
     }
 }

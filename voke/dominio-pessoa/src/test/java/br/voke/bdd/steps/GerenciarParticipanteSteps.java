@@ -6,22 +6,22 @@ import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
 import br.voke.dominio.compartilhado.*;
 import br.voke.dominio.pessoa.participante.*;
-import br.voke.dominio.pessoa.excecao.*;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class GerenciarParticipanteSteps {
 
-    private ParticipanteRepositorio repositorio;
-    private ParticipanteServico servico;
-    private Participante participante;
-    private Exception excecao;
+    private final ContextoPessoa ctx;
+    private final Map<ParticipanteId, Participante> banco = new HashMap<>();
 
-    // --- Repositório em memória para testes ---
-    private final java.util.Map<ParticipanteId, Participante> banco = new java.util.HashMap<>();
+    public GerenciarParticipanteSteps(ContextoPessoa ctx) {
+        this.ctx = ctx;
+    }
 
     private ParticipanteRepositorio criarRepositorioEmMemoria() {
         return new ParticipanteRepositorio() {
@@ -34,186 +34,94 @@ public class GerenciarParticipanteSteps {
             @Override public boolean existePorEmail(Email email) {
                 return banco.values().stream().anyMatch(p -> p.getEmail().equals(email));
             }
+            @Override public Optional<Participante> buscarPorEmail(Email email) {
+                return banco.values().stream().filter(p -> p.getEmail().equals(email)).findFirst();
+            }
+            @Override public Optional<Participante> buscarPorCpf(Cpf cpf) {
+                return banco.values().stream().filter(p -> p.getCpf().equals(cpf)).findFirst();
+            }
         };
     }
 
-    // ===== Cenário: Criar conta com dados válidos =====
-    @Dado("que um usuário não possui conta no sistema")
-    public void queUmUsuarioNaoPossuiContaNoSistema() {
+    private void inicializar() {
         banco.clear();
-        repositorio = criarRepositorioEmMemoria();
-        servico = new ParticipanteServico(repositorio);
-        excecao = null;
-        participante = null;
+        ctx.repoParticipante = criarRepositorioEmMemoria();
+        ctx.servicoParticipante = new ParticipanteServico(ctx.repoParticipante);
+        ctx.atorAtual = ContextoPessoa.Ator.PARTICIPANTE;
+        ctx.excecao = null;
+        ctx.participante = null;
     }
+
+    @Dado("que um usuário não possui conta no sistema")
+    public void queUmUsuarioNaoPossuiContaNoSistema() { inicializar(); }
 
     @Quando("ele preenche nome, CPF válido, e-mail, data de nascimento e demais dados obrigatórios")
     public void elePreencheNomeCpfValidoEmailDataNascimento() {
         try {
-            participante = servico.cadastrar(
+            ctx.participante = ctx.servicoParticipante.cadastrar(
                     new NomeCompleto("João Silva"),
                     new Cpf("529.982.247-25"),
                     new Email("joao@email.com"),
                     new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(2000, 1, 1))
-            );
-        } catch (Exception e) {
-            excecao = e;
-        }
+                    new DataNascimento(LocalDate.of(2000, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @E("possui a idade mínima exigida")
-    public void possuiAIdadeMinimaExigida() {
-        // Validação implícita no DataNascimento
-    }
+    public void possuiAIdadeMinimaExigida() { /* validação implícita */ }
 
     @Então("a conta é criada com sucesso")
     public void aContaECriadaComSucesso() {
-        assertNull(excecao);
-        assertNotNull(participante);
+        assertNull(ctx.excecao);
+        assertNotNull(ctx.participante);
     }
 
     @E("o participante recebe uma confirmação de cadastro")
-    public void oParticipanteRecebeConfirmacao() {
-        assertNotNull(participante.getId());
-    }
+    public void oParticipanteRecebeConfirmacao() { assertNotNull(ctx.participante.getId()); }
 
-    // ===== Cenário: CPF inválido =====
-    @Quando("ele preenche os dados com um CPF inválido")
-    public void elePreencheComCpfInvalido() {
-        try {
-            participante = servico.cadastrar(
-                    new NomeCompleto("João Silva"),
-                    new Cpf("000.000.000-00"),
-                    new Email("joao@email.com"),
-                    new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(2000, 1, 1))
-            );
-        } catch (Exception e) {
-            excecao = e;
-        }
-    }
-
-    @Então("o sistema rejeita o cadastro")
-    public void oSistemaRejeitaOCadastro() {
-        assertNotNull(excecao);
-    }
-
-    @E("exibe a mensagem {string}")
-    public void exibeAMensagem(String mensagemEsperada) {
-        assertNotNull(excecao);
-        assertTrue(excecao.getMessage().contains(mensagemEsperada),
-                "Esperava mensagem contendo '" + mensagemEsperada + "', mas foi: " + excecao.getMessage());
-    }
-
-    // ===== Cenário: E-mail duplicado =====
     @Quando("ele preenche os dados com um e-mail já utilizado por outra conta")
     public void elePreencheComEmailJaUtilizado() {
         try {
-            servico.cadastrar(
-                    new NomeCompleto("Maria Silva"),
-                    new Cpf("529.982.247-25"),
-                    new Email("existente@email.com"),
-                    new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(2000, 1, 1))
-            );
-            participante = servico.cadastrar(
-                    new NomeCompleto("João Silva"),
-                    new Cpf("418.236.780-90"),
-                    new Email("existente@email.com"),
-                    new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.of(2001, 1, 1))
-            );
-        } catch (Exception e) {
-            excecao = e;
-        }
+            ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("Maria Silva"), new Cpf("529.982.247-25"),
+                    new Email("existente@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(2000, 1, 1)));
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("João Silva"), new Cpf("111.444.777-35"),
+                    new Email("existente@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(2001, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
-    // ===== Cenário: Idade mínima =====
     @Quando("ele preenche os dados com uma data de nascimento que não atinge a idade mínima")
     public void elePreencheComIdadeInsuficiente() {
         try {
-            participante = servico.cadastrar(
-                    new NomeCompleto("Criança Silva"),
-                    new Cpf("529.982.247-25"),
-                    new Email("crianca@email.com"),
-                    new Senha("Senha@123"),
-                    new DataNascimento(LocalDate.now().minusYears(10))
-            );
-        } catch (Exception e) {
-            excecao = e;
-        }
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("Criança Silva"), new Cpf("529.982.247-25"),
+                    new Email("crianca@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.now().minusYears(10)));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
-    // ===== Cenário: Editar dados =====
     @Dado("que o participante está autenticado no sistema")
     public void queOParticipanteEstaAutenticado() {
-        banco.clear();
-        repositorio = criarRepositorioEmMemoria();
-        servico = new ParticipanteServico(repositorio);
-        excecao = null;
-        participante = servico.cadastrar(
-                new NomeCompleto("João Silva"),
-                new Cpf("529.982.247-25"),
-                new Email("joao@email.com"),
-                new Senha("Senha@123"),
-                new DataNascimento(LocalDate.of(2000, 1, 1))
-        );
+        inicializar();
+        ctx.participante = ctx.servicoParticipante.cadastrar(
+                new NomeCompleto("João Silva"), new Cpf("529.982.247-25"),
+                new Email("joao@email.com"), new Senha("Senha@123"),
+                new DataNascimento(LocalDate.of(2000, 1, 1)));
     }
 
     @Quando("ele altera campos permitidos como nome ou e-mail")
     public void eleAlteraCamposPermitidos() {
         try {
-            servico.atualizarDados(participante.getId(), new NomeCompleto("João Atualizado"), new Email("novo@email.com"));
-        } catch (Exception e) {
-            excecao = e;
-        }
-    }
-
-    @Então("os dados são atualizados com sucesso")
-    public void osDadosSaoAtualizados() {
-        assertNull(excecao);
-    }
-
-    @E("o sistema exibe a mensagem {string}")
-    public void oSistemaExibeMensagem(String mensagem) {
-        // Confirmação implícita — o step anterior não gerou exceção
-        assertNull(excecao);
-    }
-
-    // ===== Cenário: Alterar data de nascimento =====
-    @Quando("ele tenta alterar sua data de nascimento")
-    public void eleTentaAlterarDataNascimento() {
-        try {
-            participante.alterarDataNascimento(new DataNascimento(LocalDate.of(1995, 1, 1)));
-        } catch (Exception e) {
-            excecao = e;
-        }
-    }
-
-    @Então("o sistema bloqueia a alteração")
-    public void oSistemaBloqueiaAAlteracao() {
-        assertNotNull(excecao);
-    }
-
-    // ===== Cenário: Remover conta =====
-    @Quando("ele solicita a remoção da sua conta")
-    public void eleSolicitaRemocao() {
-        try {
-            servico.remover(participante.getId());
-        } catch (Exception e) {
-            excecao = e;
-        }
-    }
-
-    @Então("a conta é removida do sistema")
-    public void aContaERemovidaDoSistema() {
-        assertNull(excecao);
-        assertFalse(repositorio.buscarPorId(participante.getId()).isPresent());
+            ctx.servicoParticipante.atualizarDados(ctx.participante.getId(),
+                    new NomeCompleto("João Atualizado"), new Email("novo@email.com"));
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @E("o participante não consegue mais fazer login")
     public void oParticipanteNaoConsegueMaisFazerLogin() {
-        assertTrue(banco.isEmpty() || !banco.containsKey(participante.getId()));
+        assertFalse(ctx.repoParticipante.buscarPorId(ctx.participante.getId()).isPresent());
     }
 }

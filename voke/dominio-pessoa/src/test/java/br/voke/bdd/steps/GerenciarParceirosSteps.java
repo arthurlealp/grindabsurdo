@@ -14,18 +14,30 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class GerenciarParceirosSteps {
 
+    private final ContextoPessoa ctx;
     private ParceiroServico servico;
     private ParceiroRepositorio repositorio;
     private PresencaConsulta presencaConsulta;
     private Parceiro parceiro;
-    private Exception excecao;
     private final Map<ParceiroId, Parceiro> banco = new HashMap<>();
+
+    public GerenciarParceirosSteps(ContextoPessoa ctx) {
+        this.ctx = ctx;
+    }
 
     private ParceiroRepositorio criarRepositorioEmMemoria() {
         return new ParceiroRepositorio() {
             @Override public void salvar(Parceiro p) { banco.put(p.getId(), p); }
             @Override public Optional<Parceiro> buscarPorId(ParceiroId id) { return Optional.ofNullable(banco.get(id)); }
             @Override public void remover(ParceiroId id) { banco.remove(id); }
+            @Override public List<Parceiro> buscarPorOrganizador(OrganizadorId organizadorId) {
+                return banco.values().stream().filter(p -> p.getOrganizadorId().equals(organizadorId)).toList();
+            }
+            @Override public Optional<Parceiro> buscarPorParticipanteEOrganizador(ParticipanteId pid, OrganizadorId oid) {
+                return banco.values().stream()
+                        .filter(p -> p.getParticipanteId().equals(pid) && p.getOrganizadorId().equals(oid))
+                        .findFirst();
+            }
         };
     }
 
@@ -33,7 +45,7 @@ public class GerenciarParceirosSteps {
     public void organizadorAutenticado() {
         banco.clear();
         repositorio = criarRepositorioEmMemoria();
-        excecao = null;
+        ctx.excecao = null;
         parceiro = null;
     }
 
@@ -51,12 +63,12 @@ public class GerenciarParceirosSteps {
                     new OrganizadorId(UUID.randomUUID()),
                     Set.of(AtividadeParceiro.DIVULGACAO_REDES_SOCIAIS)
             );
-        } catch (Exception e) { excecao = e; }
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("o parceiro é registrado com sucesso")
     public void oParceiroERegistradoComSucesso() {
-        assertNull(excecao);
+        assertNull(ctx.excecao);
         assertNotNull(parceiro);
     }
 
@@ -74,7 +86,7 @@ public class GerenciarParceirosSteps {
                     new OrganizadorId(UUID.randomUUID()),
                     Set.of(AtividadeParceiro.DIVULGACAO_REDES_SOCIAIS)
             );
-        } catch (Exception e) { excecao = e; }
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Dado("que o parceiro já possui o número máximo de atividades atribuídas")
@@ -83,7 +95,7 @@ public class GerenciarParceirosSteps {
         repositorio = criarRepositorioEmMemoria();
         presencaConsulta = (participanteId, organizadorId) -> 5;
         servico = new ParceiroServico(repositorio, presencaConsulta);
-        excecao = null;
+        ctx.excecao = null;
         parceiro = servico.cadastrar(
                 new ParticipanteId(UUID.randomUUID()),
                 new OrganizadorId(UUID.randomUUID()),
@@ -95,12 +107,12 @@ public class GerenciarParceirosSteps {
     public void organizadorTentaAdicionarAtividade() {
         try {
             parceiro.adicionarAtividade(AtividadeParceiro.DIVULGACAO_REDES_SOCIAIS);
-        } catch (Exception e) { excecao = e; }
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("o sistema rejeita a adição")
     public void oSistemaRejeitaAdicao() {
-        assertNotNull(excecao);
+        assertNotNull(ctx.excecao);
     }
 
     @Dado("que o participante utilizou um cupom vinculado a um parceiro")
@@ -109,7 +121,7 @@ public class GerenciarParceirosSteps {
         repositorio = criarRepositorioEmMemoria();
         presencaConsulta = (participanteId, organizadorId) -> 5;
         servico = new ParceiroServico(repositorio, presencaConsulta);
-        excecao = null;
+        ctx.excecao = null;
         parceiro = servico.cadastrar(
                 new ParticipanteId(UUID.randomUUID()),
                 new OrganizadorId(UUID.randomUUID()),
@@ -146,12 +158,12 @@ public class GerenciarParceirosSteps {
     public void eleExcluiOParceiro() {
         try {
             repositorio.remover(parceiro.getId());
-        } catch (Exception e) { excecao = e; }
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("o parceiro é removido do sistema")
     public void oParceiroERemovidoDoSistema() {
-        assertNull(excecao);
+        assertNull(ctx.excecao);
         assertFalse(repositorio.buscarPorId(parceiro.getId()).isPresent());
     }
 }

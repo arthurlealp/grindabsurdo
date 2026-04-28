@@ -9,6 +9,7 @@
         <groupId>voke</groupId>
         <artifactId>voke-pai</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pai</relativePath>
     </parent>
 
     <artifactId>voke-dominio-pessoa</artifactId>

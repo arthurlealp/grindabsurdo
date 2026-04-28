@@ -9,6 +9,7 @@
         <groupId>voke</groupId>
         <artifactId>voke-pai</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pai</relativePath>
     </parent>
 
     <artifactId>voke-infraestrutura</artifactId>
@@ -33,7 +34,7 @@
 
 		<dependency>
 		    <groupId>org.springframework.boot</groupId>
-		    <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+		    <artifactId>spring-boot-starter-test</artifactId>
 		    <scope>test</scope>
 		</dependency>		
     </dependencies>

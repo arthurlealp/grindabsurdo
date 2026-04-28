@@ -23,6 +23,7 @@
         <module>dominio-inscricao</module>
         <module>dominio-evento</module>
         <module>dominio-pessoa</module>
+        <module>dominio-fidelidade</module>
         <module>aplicacao</module>
         <module>infraestrutura</module>
         <module>apresentacao-frontend</module>

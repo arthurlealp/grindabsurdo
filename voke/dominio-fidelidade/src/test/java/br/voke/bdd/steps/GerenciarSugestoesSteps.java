@@ -23,6 +23,9 @@ public class GerenciarSugestoesSteps {
             @Override public Optional<Sugestao> buscarPorId(SugestaoId id) { return Optional.ofNullable(banco.get(id)); }
             @Override public List<Sugestao> buscarPorParticipanteId(UUID pid) { return new ArrayList<>(banco.values()); }
             @Override public void remover(SugestaoId id) { banco.remove(id); }
+            @Override public int contarSugestoesSemanalPorParticipante(UUID pid) {
+                return (int) banco.values().stream().filter(s -> s.getParticipanteId().equals(pid)).count();
+            }
         };
     }
 

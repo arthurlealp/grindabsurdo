@@ -67,6 +67,11 @@ public class Recompensa extends EntidadeBase<RecompensaId> {
         this.ativa = false;
     }
 
+    public void atualizarDescricao(String novaDescricao) {
+        Objects.requireNonNull(novaDescricao, "Descrição é obrigatória");
+        this.descricao = novaDescricao;
+    }
+
     public boolean estaDisponivel() {
         return ativa && estoqueResgatado < estoqueTotal;
     }

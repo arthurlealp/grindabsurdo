@@ -6,6 +6,7 @@ import br.voke.dominio.fidelidade.pontos.ContaPontosId;
 import br.voke.dominio.fidelidade.recompensa.Recompensa;
 import br.voke.dominio.fidelidade.recompensa.RecompensaId;
 import br.voke.dominio.fidelidade.recompensa.RecompensaRepositorio;
+import br.voke.dominio.fidelidade.recompensa.RecompensaServico;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +29,8 @@ class ResgatarRecompensaCasoDeUsoTest {
     void setUp() {
         contaRepositorio = new CreditarPontosCasoDeUsoTest.InMemoryContaPontosRepositorio();
         recompensaRepositorio = new InMemoryRecompensaRepositorio();
-        casoDeUso = new ResgatarRecompensaCasoDeUso(contaRepositorio, recompensaRepositorio);
+        casoDeUso = new ResgatarRecompensaCasoDeUso(
+                new RecompensaServico(recompensaRepositorio, contaRepositorio));
     }
 
     @Test

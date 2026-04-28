@@ -1,27 +1,22 @@
 package br.voke.aplicacao.fidelidade;
 
 import br.voke.dominio.fidelidade.recompensa.Recompensa;
-import br.voke.dominio.fidelidade.recompensa.RecompensaId;
-import br.voke.dominio.fidelidade.recompensa.RecompensaRepositorio;
+import br.voke.dominio.fidelidade.recompensa.RecompensaServico;
 
 import java.util.Objects;
 import java.util.UUID;
 
 public class CadastrarRecompensaCasoDeUso {
 
-    private final RecompensaRepositorio repositorio;
+    private final RecompensaServico servico;
 
-    public CadastrarRecompensaCasoDeUso(RecompensaRepositorio repositorio) {
-        Objects.requireNonNull(repositorio);
-        this.repositorio = repositorio;
+    public CadastrarRecompensaCasoDeUso(RecompensaServico servico) {
+        Objects.requireNonNull(servico);
+        this.servico = servico;
     }
 
     public Recompensa executar(String nome, String descricao, int custoEmPontos,
                                int estoqueTotal, UUID organizadorId) {
-        Recompensa recompensa = new Recompensa(
-                RecompensaId.novo(), nome, descricao, custoEmPontos, estoqueTotal, organizadorId
-        );
-        repositorio.salvar(recompensa);
-        return recompensa;
+        return servico.cadastrar(nome, descricao, custoEmPontos, estoqueTotal, organizadorId);
     }
 }

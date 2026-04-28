@@ -3,6 +3,7 @@ package br.voke.aplicacao.fidelidade;
 import br.voke.dominio.fidelidade.pontos.ContaPontos;
 import br.voke.dominio.fidelidade.pontos.ContaPontosId;
 import br.voke.dominio.fidelidade.pontos.ContaPontosRepositorio;
+import br.voke.dominio.fidelidade.pontos.ContaPontosServico;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +23,7 @@ class CreditarPontosCasoDeUsoTest {
     @BeforeEach
     void setUp() {
         repositorio = new InMemoryContaPontosRepositorio();
-        casoDeUso = new CreditarPontosCasoDeUso(repositorio);
+        casoDeUso = new CreditarPontosCasoDeUso(new ContaPontosServico(repositorio));
     }
 
     @Test

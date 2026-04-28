@@ -6,16 +6,16 @@ import br.voke.dominio.fidelidade.sugestao.SugestaoServico;
 import java.util.Objects;
 import java.util.UUID;
 
-public class AvaliarSugestaoCasoDeUso {
+public class EditarSugestaoCasoDeUso {
 
     private final SugestaoServico servico;
 
-    public AvaliarSugestaoCasoDeUso(SugestaoServico servico) {
+    public EditarSugestaoCasoDeUso(SugestaoServico servico) {
         Objects.requireNonNull(servico);
         this.servico = servico;
     }
 
-    public void executar(UUID sugestaoId, boolean aprovada) {
-        servico.avaliar(new SugestaoId(sugestaoId), aprovada);
+    public void executar(UUID sugestaoId, String novaDescricao) {
+        servico.editar(new SugestaoId(sugestaoId), novaDescricao);
     }
 }

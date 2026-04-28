@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -q -fae -DskipTests install)",
+      "Bash(mvn -fae -DskipTests install)",
+      "Bash(mvn -fae test)",
+      "Bash(mvn test *)"
+    ]
+  }
+}

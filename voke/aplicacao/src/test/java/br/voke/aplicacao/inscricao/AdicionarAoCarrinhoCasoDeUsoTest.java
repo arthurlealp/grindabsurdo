@@ -3,6 +3,7 @@ package br.voke.aplicacao.inscricao;
 import br.voke.dominio.inscricao.carrinho.Carrinho;
 import br.voke.dominio.inscricao.carrinho.CarrinhoId;
 import br.voke.dominio.inscricao.carrinho.CarrinhoRepositorio;
+import br.voke.dominio.inscricao.carrinho.CarrinhoServico;
 import br.voke.dominio.inscricao.excecao.LimiteEventosCarrinhoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class AdicionarAoCarrinhoCasoDeUsoTest {
     @BeforeEach
     void setUp() {
         repositorio = new InMemoryCarrinhoRepositorio();
-        casoDeUso = new AdicionarAoCarrinhoCasoDeUso(repositorio);
+        casoDeUso = new AdicionarAoCarrinhoCasoDeUso(new CarrinhoServico(repositorio));
     }
 
     @Test

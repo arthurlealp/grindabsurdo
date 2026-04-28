@@ -28,6 +28,14 @@ public class CupomServico {
         repositorio.salvar(cupom);
     }
 
+    public BigDecimal validarEUtilizar(String codigo, String cpf) {
+        Cupom cupom = repositorio.buscarPorCodigo(codigo)
+                .orElseThrow(() -> new IllegalArgumentException("Cupom inválido ou expirado"));
+        cupom.utilizar(cpf);
+        repositorio.salvar(cupom);
+        return cupom.getDesconto();
+    }
+
     public void remover(CupomId id) {
         repositorio.buscarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado"));

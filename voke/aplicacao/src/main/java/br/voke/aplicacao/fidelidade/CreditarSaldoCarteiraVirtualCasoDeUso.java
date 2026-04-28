@@ -6,16 +6,16 @@ import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;
 
-public class AdicionarSaldoCasoDeUso {
+public class CreditarSaldoCarteiraVirtualCasoDeUso {
 
     private final CarteiraVirtualServico servico;
 
-    public AdicionarSaldoCasoDeUso(CarteiraVirtualServico servico) {
+    public CreditarSaldoCarteiraVirtualCasoDeUso(CarteiraVirtualServico servico) {
         Objects.requireNonNull(servico);
         this.servico = servico;
     }
 
     public void executar(UUID participanteId, BigDecimal valor) {
-        servico.adicionarSaldo(participanteId, valor);
+        servico.creditar(participanteId, valor);
     }
 }

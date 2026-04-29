@@ -5,11 +5,16 @@ import io.cucumber.java.pt.Quando;
 import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
 import br.voke.dominio.compartilhado.NomeCompleto;
+import br.voke.dominio.compartilhado.Cpf;
+import br.voke.dominio.compartilhado.DataNascimento;
+import br.voke.dominio.compartilhado.Email;
+import br.voke.dominio.compartilhado.Senha;
 import br.voke.dominio.pessoa.amizade.*;
-import br.voke.dominio.pessoa.excecao.AcessoRestritoPorIdadeException;
 import br.voke.dominio.pessoa.excecao.VinculoDeAmizadeNecessarioException;
+import br.voke.dominio.pessoa.participante.Participante;
 import br.voke.dominio.pessoa.participante.ParticipanteId;
 
+import java.time.LocalDate;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -18,6 +23,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class GerenciarAmigosSteps {
 
@@ -26,6 +32,8 @@ public class GerenciarAmigosSteps {
     private AmizadeServico servico;
     private Amizade amizade;
     private ComunidadeAmigos comunidade;
+    private Participante solicitanteAmizade;
+    private ParticipanteId receptorAmizadeId;
     private UUID eventoCompartilhadoId;
     private boolean eventoComVagas;
     private boolean direcionadoParaInscricao;
@@ -78,18 +86,31 @@ public class GerenciarAmigosSteps {
         return a;
     }
 
+    private Participante criarParticipanteMaiorDe16(String cpf, String email) {
+        return new Participante(
+                new ParticipanteId(UUID.randomUUID()),
+                new NomeCompleto("Participante Amigo"),
+                new Cpf(cpf),
+                new Email(email),
+                new Senha("Senha@123"),
+                new DataNascimento(LocalDate.of(2000, 1, 1))
+        );
+    }
+
     @Dado("que o participante está autenticado e possui 16 anos ou mais")
     public void participanteAutenticadoComIdade() {
         banco.clear();
         repositorio = criarRepositorioEmMemoria();
         servico = new AmizadeServico(repositorio);
         ctx.excecao = null;
+        solicitanteAmizade = criarParticipanteMaiorDe16("529.982.247-25", "amizade@email.com");
+        receptorAmizadeId = new ParticipanteId(UUID.randomUUID());
     }
 
     @Quando("ele envia uma solicitação de amizade para outro participante")
     public void eleEnviaSolicitacao() {
         try {
-            amizade = criarAmizadePendente();
+            amizade = servico.enviarSolicitacao(solicitanteAmizade, receptorAmizadeId);
         } catch (Exception e) { ctx.excecao = e; }
     }
 
@@ -146,11 +167,17 @@ public class GerenciarAmigosSteps {
         repositorio = criarRepositorioEmMemoria();
         servico = new AmizadeServico(repositorio);
         ctx.excecao = null;
+        solicitanteAmizade = mock(Participante.class);
+        when(solicitanteAmizade.getId()).thenReturn(new ParticipanteId(UUID.randomUUID()));
+        when(solicitanteAmizade.getIdade()).thenReturn(15);
+        receptorAmizadeId = new ParticipanteId(UUID.randomUUID());
     }
 
     @Quando("ele tenta enviar uma solicitação de amizade")
     public void eleTentaEnviarSolicitacao() {
-        ctx.excecao = new AcessoRestritoPorIdadeException();
+        try {
+            servico.enviarSolicitacao(solicitanteAmizade, receptorAmizadeId);
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("o sistema rejeita a ação")
@@ -196,7 +223,17 @@ public class GerenciarAmigosSteps {
 
     @Quando("ele tenta criar um grupo de amigos")
     public void eleTentaCriarGrupo() {
-        ctx.excecao = new VinculoDeAmizadeNecessarioException();
+        ParticipanteId participanteId = new ParticipanteId(UUID.randomUUID());
+        try {
+            if (!servico.possuiAmizadeAtiva(participanteId)) {
+                throw new VinculoDeAmizadeNecessarioException();
+            }
+            comunidade = new ComunidadeAmigos(
+                    ComunidadeAmigosId.novo(),
+                    new NomeCompleto("Grupo dos Amigos"),
+                    participanteId
+            );
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Dado("que um participante compartilhou um evento com seu grupo de amigos")

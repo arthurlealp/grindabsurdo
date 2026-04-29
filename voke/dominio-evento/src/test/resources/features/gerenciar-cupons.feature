@@ -34,6 +34,13 @@ Funcionalidade: Gerenciar Cupons
     Então o sistema rejeita o uso
     E exibe a mensagem "Este cupom não está mais disponível"
 
+  Cenário: Tentar alterar desconto de cupom já utilizado
+    Dado que o organizador está autenticado
+    E o cupom já foi utilizado por ao menos um participante
+    Quando ele tenta alterar o desconto do cupom
+    Então o sistema rejeita a alteração
+    E exibe a mensagem "Não é possível alterar o desconto de um cupom já utilizado"
+
   Cenário: Organizador edita cupom existente
     Dado que o organizador está autenticado
     E o cupom existe no sistema

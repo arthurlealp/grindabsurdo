@@ -29,6 +29,20 @@ Funcionalidade: Gerenciar Recompensas com Pontos
     Então o resgate do participante é concluído com os valores anteriores
     E a edição ou remoção é aplicada somente após a conclusão do resgate
 
+  Cenário: Tentar resgatar recompensa com estoque esgotado
+    Dado que o participante possui saldo de pontos suficiente
+    E a recompensa atingiu o limite de resgates e está esgotada
+    Quando ele tenta resgatar a recompensa
+    Então o sistema rejeita o resgate
+    E exibe a mensagem "Recompensa esgotada"
+
+  Cenário: Organizador inativa recompensa sem excluí-la
+    Dado que o organizador está autenticado
+    E a recompensa está ativa no catálogo
+    Quando ele inativa a recompensa
+    Então a recompensa deixa de aparecer para os participantes
+    E permanece registrada no sistema sem ser excluída
+
   Cenário: Organizador remove recompensa sem resgate em andamento
     Dado que o organizador está autenticado
     E nenhum participante está resgatando a recompensa no momento

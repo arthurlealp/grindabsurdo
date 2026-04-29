@@ -30,6 +30,14 @@ Funcionalidade: Gerenciar Evento
     Então o sistema rejeita a criação do lote
     E exibe a mensagem "Só é permitido um lote ativo por vez"
 
+  Cenário: Criar lote com quantidade acima da capacidade máxima do evento
+    Dado que o organizador está autenticado
+    E o evento possui capacidade máxima definida
+    E o lote anterior foi encerrado
+    Quando ele tenta criar um novo lote com quantidade superior à capacidade máxima do evento
+    Então o sistema rejeita a criação do lote
+    E exibe a mensagem "Quantidade do lote não pode exceder a capacidade máxima do evento"
+
   Cenário: Editar informações do evento com sucesso
     Dado que o organizador está autenticado
     E o evento existe no sistema

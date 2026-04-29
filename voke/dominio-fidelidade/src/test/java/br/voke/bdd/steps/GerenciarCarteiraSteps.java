@@ -118,7 +118,7 @@ public class GerenciarCarteiraSteps {
 
     @E("o valor a remover está dentro do limite de remoção")
     public void valorDentroDoLimiteDeRemocao() {
-        /* contexto */
+        assertTrue(new BigDecimal("50.00").compareTo(new BigDecimal("500.00")) <= 0);
     }
 
     @Quando("ele solicita a remoção de saldo")

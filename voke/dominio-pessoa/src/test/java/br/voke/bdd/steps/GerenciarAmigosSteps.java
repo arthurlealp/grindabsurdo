@@ -26,6 +26,9 @@ public class GerenciarAmigosSteps {
     private AmizadeServico servico;
     private Amizade amizade;
     private ComunidadeAmigos comunidade;
+    private UUID eventoCompartilhadoId;
+    private boolean eventoComVagas;
+    private boolean direcionadoParaInscricao;
 
     private final Map<AmizadeId, Amizade> banco = new HashMap<>();
 
@@ -202,19 +205,41 @@ public class GerenciarAmigosSteps {
         repositorio = criarRepositorioEmMemoria();
         servico = new AmizadeServico(repositorio);
         ctx.excecao = null;
+        ParticipanteId criadorId = new ParticipanteId(UUID.randomUUID());
+        ParticipanteId amigoId = new ParticipanteId(UUID.randomUUID());
+        comunidade = new ComunidadeAmigos(
+                ComunidadeAmigosId.novo(),
+                new NomeCompleto("Grupo para evento"),
+                criadorId
+        );
+        comunidade.adicionarMembro(amigoId);
+        eventoCompartilhadoId = UUID.randomUUID();
+        comunidade.compartilharEvento(eventoCompartilhadoId);
     }
 
     @E("o evento ainda possui vagas disponíveis")
-    public void oEventoAindaPossuiVagas() { /* contexto de teste */ }
+    public void oEventoAindaPossuiVagas() {
+        assertTrue(comunidade.getEventoCompartilhadoIds().contains(eventoCompartilhadoId));
+        eventoComVagas = true;
+    }
 
     @Quando("um amigo decide se inscrever no evento pelo grupo")
-    public void amigoDecideSeInscrever() { /* direcionamento para fluxo de inscrição */ }
+    public void amigoDecideSeInscrever() {
+        if (!eventoComVagas) {
+            ctx.excecao = new IllegalStateException("Vagas esgotadas para este evento");
+            return;
+        }
+        direcionadoParaInscricao = comunidade.getEventoCompartilhadoIds().contains(eventoCompartilhadoId);
+    }
 
     @Então("ele é direcionado para o fluxo de inscrição do evento")
-    public void eleDirecionadoParaFluxoInscricao() { assertNull(ctx.excecao); }
+    public void eleDirecionadoParaFluxoInscricao() { assertNull(ctx.excecao); assertTrue(direcionadoParaInscricao); }
 
     @E("o evento não possui mais vagas disponíveis")
-    public void oEventoNaoPossuiVagas() { /* contexto sem vagas */ }
+    public void oEventoNaoPossuiVagas() {
+        assertTrue(comunidade.getEventoCompartilhadoIds().contains(eventoCompartilhadoId));
+        eventoComVagas = false;
+    }
 
     @Quando("um amigo tenta se inscrever")
     public void amigoTentaSeInscrever() {

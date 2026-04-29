@@ -83,7 +83,10 @@ public class GerenciarParticipanteSteps {
     }
 
     @E("possui a idade mínima exigida")
-    public void possuiAIdadeMinimaExigida() { /* validação implícita */ }
+    public void possuiAIdadeMinimaExigida() {
+        assertNotNull(ctx.participante);
+        assertTrue(ctx.participante.getIdade() >= 16);
+    }
 
     @Então("a conta é criada com sucesso")
     public void aContaECriadaComSucesso() {

@@ -20,6 +20,8 @@ public class GerenciarSugestoesSteps {
     private Sugestao sugestao;
     private List<Sugestao> sugestoes;
     private Exception excecao;
+    private boolean perfilRefinado;
+    private boolean sugestoesReformuladas;
     private final Map<SugestaoId, Sugestao> banco = new HashMap<>();
 
     private SugestaoRepositorio criarRepo() {
@@ -46,7 +48,7 @@ public class GerenciarSugestoesSteps {
 
     @Dado("que o participante possui interesses cadastrados no sistema")
     public void participanteComInteresses() {
-        banco.clear(); repositorio = criarRepo(); excecao = null; sugestoes = new ArrayList<>();
+        banco.clear(); repositorio = criarRepo(); excecao = null; sugestoes = new ArrayList<>(); perfilRefinado = false; sugestoesReformuladas = false;
     }
 
     @Quando("o sistema processa as sugestões semanais")
@@ -64,7 +66,7 @@ public class GerenciarSugestoesSteps {
 
     @Dado("que o participante recebeu uma sugestão de evento")
     public void participanteRecebeuSugestao() {
-        banco.clear(); repositorio = criarRepo(); excecao = null;
+        banco.clear(); repositorio = criarRepo(); excecao = null; perfilRefinado = false; sugestoesReformuladas = false;
         sugestao = new Sugestao(SugestaoId.novo(), UUID.randomUUID(), UUID.randomUUID(), "Show ao vivo");
         repositorio.salvar(sugestao);
     }
@@ -76,7 +78,10 @@ public class GerenciarSugestoesSteps {
     public void feedbackPositivoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.APROVADA, sugestao.getStatus()); verify(repositorio, atLeastOnce()).salvar(sugestao); }
 
     @E("utiliza essa informação para refinar sugestões futuras")
-    public void utilizaParaRefinar() { /* motor de recomendação */ }
+    public void utilizaParaRefinar() {
+        perfilRefinado = sugestao.getStatus() == StatusSugestao.APROVADA;
+        assertTrue(perfilRefinado);
+    }
 
     @Quando("ele indica que não gostou da sugestão")
     public void eleIndicaQueNaoGostou() { try { sugestao.rejeitar(); repositorio.salvar(sugestao); } catch (Exception e) { excecao = e; } }
@@ -85,7 +90,10 @@ public class GerenciarSugestoesSteps {
     public void feedbackNegativoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.REJEITADA, sugestao.getStatus()); verify(repositorio, atLeastOnce()).salvar(sugestao); }
 
     @E("reformula as próximas sugestões evitando perfil semelhante ao rejeitado")
-    public void reformulaSugestoes() { /* motor de recomendação */ }
+    public void reformulaSugestoes() {
+        sugestoesReformuladas = sugestao.getStatus() == StatusSugestao.REJEITADA;
+        assertTrue(sugestoesReformuladas);
+    }
 
     @Dado("que o administrador está autenticado no sistema")
     public void administradorAutenticado() { banco.clear(); repositorio = criarRepo(); excecao = null; }

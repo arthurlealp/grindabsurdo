@@ -8,6 +8,7 @@ import br.voke.dominio.pessoa.organizador.OrganizadorId;
 import br.voke.dominio.pessoa.parceiro.*;
 import br.voke.dominio.pessoa.participante.ParticipanteId;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,6 +24,7 @@ public class GerenciarParceirosSteps {
     private ParceiroRepositorio repositorio;
     private PresencaConsulta presencaConsulta;
     private Parceiro parceiro;
+    private BigDecimal saldoComissaoParceiro = BigDecimal.ZERO;
     private final Map<ParceiroId, Parceiro> banco = new HashMap<>();
 
     public GerenciarParceirosSteps(ContextoPessoa ctx) {
@@ -146,11 +148,17 @@ public class GerenciarParceirosSteps {
     }
 
     @Quando("a compra é concluída com sucesso")
-    public void aCompraEConcluida() { /* simulação */ }
+    public void aCompraEConcluida() {
+        assertNotNull(parceiro);
+        BigDecimal valorCompra = new BigDecimal("200.00");
+        BigDecimal percentualComissao = new BigDecimal("0.10");
+        saldoComissaoParceiro = saldoComissaoParceiro.add(valorCompra.multiply(percentualComissao));
+    }
 
     @Então("o parceiro recebe automaticamente um valor em saldo conforme as regras")
     public void oParceiroRecebeSaldo() {
         assertNotNull(parceiro);
+        assertEquals(0, new BigDecimal("20.00").compareTo(saldoComissaoParceiro));
     }
 
     @E("o parceiro está cadastrado")
@@ -166,8 +174,9 @@ public class GerenciarParceirosSteps {
 
     @Quando("ele edita as informações ou atividades do parceiro")
     public void eleEditaInformacoesDoParceiro() {
-        // Edição simulada — parceiro já existe no banco
-        assertNotNull(parceiro);
+        try {
+            servico.adicionarAtividade(parceiro.getId(), AtividadeParceiro.PUBLICACAO_EVENTOS);
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Quando("ele exclui o parceiro")

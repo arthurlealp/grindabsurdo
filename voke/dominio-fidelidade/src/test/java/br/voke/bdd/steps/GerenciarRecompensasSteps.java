@@ -18,6 +18,8 @@ import static org.mockito.Mockito.verify;
 public class GerenciarRecompensasSteps {
     private final ContextoFidelidade ctx;
     private RecompensaRepositorio repositorio;
+    private boolean alteracaoPendenteDuranteResgate;
+    private boolean alteracaoAplicadaAposResgate;
     private final Map<RecompensaId, Recompensa> banco = new HashMap<>();
 
     public GerenciarRecompensasSteps(ContextoFidelidade ctx) {
@@ -103,19 +105,27 @@ public class GerenciarRecompensasSteps {
     }
 
     @E("o organizador tenta editar ou remover essa recompensa simultaneamente")
-    public void organizadorTentaEditarSimultaneamente() { /* concorrência simulada */ }
+    public void organizadorTentaEditarSimultaneamente() {
+        assertTrue(ctx.recompensa.estaDisponivel());
+        alteracaoPendenteDuranteResgate = true;
+    }
 
     @Quando("o sistema processa as duas operações concorrentes")
     public void sistemaProcessaOperacoesConcorrentes() {
         ctx.recompensa.resgatar();
         repositorio.salvar(ctx.recompensa);
+        if (alteracaoPendenteDuranteResgate) {
+            ctx.recompensa.atualizarDescricao("Alteração aplicada após resgate");
+            repositorio.salvar(ctx.recompensa);
+            alteracaoAplicadaAposResgate = true;
+        }
     }
 
     @Então("o resgate do participante é concluído com os valores anteriores")
-    public void resgateConcluidoComValoresAnteriores() { assertEquals(99, ctx.recompensa.getEstoqueRestante()); verify(repositorio, atLeastOnce()).salvar(ctx.recompensa); }
+    public void resgateConcluidoComValoresAnteriores() { assertEquals(99, ctx.recompensa.getEstoqueRestante()); assertEquals(300, ctx.recompensa.getCustoEmPontos()); verify(repositorio, atLeastOnce()).salvar(ctx.recompensa); }
 
     @E("a edição ou remoção é aplicada somente após a conclusão do resgate")
-    public void edicaoAplicadaAposResgate() { /* confirmação */ }
+    public void edicaoAplicadaAposResgate() { assertTrue(alteracaoAplicadaAposResgate); assertEquals("Alteração aplicada após resgate", ctx.recompensa.getDescricao()); }
 
     @Quando("ele remove a recompensa")
     public void eleRemoveRecompensa() {

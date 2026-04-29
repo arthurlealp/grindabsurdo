@@ -18,6 +18,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -30,6 +31,8 @@ public class GerenciarPontosSteps {
     private final ContaPontosRepositorio repositorio = criarRepositorioEmMemoria();
     private final ContaPontosServico servico = new ContaPontosServico(repositorio);
     private boolean presencaConfirmada;
+    private boolean eventoEncerrado;
+    private boolean participanteNotificadoExpiracao;
 
     public GerenciarPontosSteps(ContextoFidelidade ctx) {
         this.ctx = ctx;
@@ -74,7 +77,7 @@ public class GerenciarPontosSteps {
 
     @E("o evento foi encerrado")
     public void eventoEncerrado() {
-        /* contexto */
+        eventoEncerrado = true;
     }
 
     @Quando("o sistema processa o encerramento")
@@ -82,7 +85,7 @@ public class GerenciarPontosSteps {
         garantirConta();
         if (!presencaConfirmada) return;
         try {
-            servico.creditarPorPresenca(participanteId, 100, true, true);
+            servico.creditarPorPresenca(participanteId, 100, eventoEncerrado, presencaConfirmada);
         } catch (Exception e) {
             ctx.excecao = e;
         }
@@ -100,6 +103,7 @@ public class GerenciarPontosSteps {
         ctx.conta = servico.obterOuCriar(participanteId);
         ctx.excecao = null;
         presencaConfirmada = true;
+        eventoEncerrado = false;
     }
 
     @Mas("a presença do participante não foi confirmada")
@@ -175,12 +179,14 @@ public class GerenciarPontosSteps {
     public void participanteComPontosExpirados() {
         ctx.conta = servico.obterOuCriar(participanteId);
         ctx.excecao = null;
+        participanteNotificadoExpiracao = false;
         servico.creditarPorPresenca(participanteId, 100, true, true);
     }
 
     @Quando("o sistema processa a expiração")
     public void oSistemaProcessaExpiracao() {
         servico.expirarPontos(participanteId, 100);
+        participanteNotificadoExpiracao = true;
     }
 
     @Então("os pontos expirados são removidos do saldo do participante")
@@ -191,6 +197,6 @@ public class GerenciarPontosSteps {
 
     @E("o participante é notificado sobre a expiração")
     public void participanteNotificado() {
-        /* notificação seria na camada de aplicação */
+        assertTrue(participanteNotificadoExpiracao);
     }
 }

@@ -9,6 +9,11 @@ import br.voke.dominio.fidelidade.sugestao.*;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarSugestoesSteps {
     private SugestaoRepositorio repositorio;
@@ -18,15 +23,25 @@ public class GerenciarSugestoesSteps {
     private final Map<SugestaoId, Sugestao> banco = new HashMap<>();
 
     private SugestaoRepositorio criarRepo() {
-        return new SugestaoRepositorio() {
-            @Override public void salvar(Sugestao s) { banco.put(s.getId(), s); }
-            @Override public Optional<Sugestao> buscarPorId(SugestaoId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public List<Sugestao> buscarPorParticipanteId(UUID pid) { return new ArrayList<>(banco.values()); }
-            @Override public void remover(SugestaoId id) { banco.remove(id); }
-            @Override public int contarSugestoesSemanalPorParticipante(UUID pid) {
-                return (int) banco.values().stream().filter(s -> s.getParticipanteId().equals(pid)).count();
-            }
-        };
+        SugestaoRepositorio mockRepositorio = mock(SugestaoRepositorio.class);
+        doAnswer(invocation -> {
+            Sugestao sugestaoSalva = invocation.getArgument(0);
+            banco.put(sugestaoSalva.getId(), sugestaoSalva);
+            return null;
+        }).when(mockRepositorio).salvar(any(Sugestao.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(SugestaoId.class));
+        doAnswer(invocation -> new ArrayList<>(banco.values()))
+                .when(mockRepositorio).buscarPorParticipanteId(any(UUID.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(SugestaoId.class));
+        doAnswer(invocation -> {
+            UUID pid = invocation.getArgument(0);
+            return (int) banco.values().stream().filter(s -> s.getParticipanteId().equals(pid)).count();
+        }).when(mockRepositorio).contarSugestoesSemanalPorParticipante(any(UUID.class));
+        return mockRepositorio;
     }
 
     @Dado("que o participante possui interesses cadastrados no sistema")
@@ -45,7 +60,7 @@ public class GerenciarSugestoesSteps {
     }
 
     @Então("o participante recebe exatamente 4 sugestões de eventos alinhadas ao seu perfil")
-    public void participanteRecebe4Sugestoes() { assertEquals(4, sugestoes.size()); }
+    public void participanteRecebe4Sugestoes() { assertEquals(4, sugestoes.size()); verify(repositorio).salvar(sugestoes.get(0)); }
 
     @Dado("que o participante recebeu uma sugestão de evento")
     public void participanteRecebeuSugestao() {
@@ -58,7 +73,7 @@ public class GerenciarSugestoesSteps {
     public void eleIndicaQueGostou() { try { sugestao.aprovar(); repositorio.salvar(sugestao); } catch (Exception e) { excecao = e; } }
 
     @Então("o sistema registra o feedback positivo")
-    public void feedbackPositivoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.APROVADA, sugestao.getStatus()); }
+    public void feedbackPositivoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.APROVADA, sugestao.getStatus()); verify(repositorio, atLeastOnce()).salvar(sugestao); }
 
     @E("utiliza essa informação para refinar sugestões futuras")
     public void utilizaParaRefinar() { /* motor de recomendação */ }
@@ -67,7 +82,7 @@ public class GerenciarSugestoesSteps {
     public void eleIndicaQueNaoGostou() { try { sugestao.rejeitar(); repositorio.salvar(sugestao); } catch (Exception e) { excecao = e; } }
 
     @Então("o sistema registra o feedback negativo")
-    public void feedbackNegativoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.REJEITADA, sugestao.getStatus()); }
+    public void feedbackNegativoRegistrado() { assertNull(excecao); assertEquals(StatusSugestao.REJEITADA, sugestao.getStatus()); verify(repositorio, atLeastOnce()).salvar(sugestao); }
 
     @E("reformula as próximas sugestões evitando perfil semelhante ao rejeitado")
     public void reformulaSugestoes() { /* motor de recomendação */ }
@@ -82,7 +97,7 @@ public class GerenciarSugestoesSteps {
     }
 
     @Então("a sugestão é inserida na fila de sugestões do usuário")
-    public void aSugestaoEInserida() { assertNotNull(sugestao); assertEquals(StatusSugestao.PENDENTE, sugestao.getStatus()); }
+    public void aSugestaoEInserida() { assertNotNull(sugestao); assertEquals(StatusSugestao.PENDENTE, sugestao.getStatus()); verify(repositorio).salvar(sugestao); }
 
     @Dado("que uma sugestão foi enviada ao usuário e ainda está pendente de avaliação")
     public void sugestaoPendente() {
@@ -104,5 +119,5 @@ public class GerenciarSugestoesSteps {
     public void administradorRemoveSugestao() { repositorio.remover(sugestao.getId()); }
 
     @Então("a sugestão é excluída e não aparece mais para o usuário")
-    public void aSugestaoEExcluida() { assertFalse(repositorio.buscarPorId(sugestao.getId()).isPresent()); }
+    public void aSugestaoEExcluida() { assertFalse(repositorio.buscarPorId(sugestao.getId()).isPresent()); verify(repositorio).remover(sugestao.getId()); }
 }

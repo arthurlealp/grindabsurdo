@@ -16,12 +16,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarInscricaoSteps {
     private final ContextoInscricao contexto;
@@ -71,26 +75,36 @@ public class GerenciarInscricaoSteps {
     }
 
     private InscricaoRepositorio criarRepo() {
-        return new InscricaoRepositorio() {
-            @Override public void salvar(Inscricao inscricao) { banco.put(inscricao.getId(), inscricao); }
-            @Override public Optional<Inscricao> buscarPorId(InscricaoId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public List<Inscricao> buscarPorParticipanteId(UUID participanteId) {
-                return banco.values().stream()
+        InscricaoRepositorio mockRepositorio = mock(InscricaoRepositorio.class);
+        doAnswer(invocation -> {
+            Inscricao inscricaoSalva = invocation.getArgument(0);
+            banco.put(inscricaoSalva.getId(), inscricaoSalva);
+            return null;
+        }).when(mockRepositorio).salvar(any(Inscricao.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(InscricaoId.class));
+        doAnswer(invocation -> {
+            UUID participanteId = invocation.getArgument(0);
+            return banco.values().stream()
                         .filter(inscricao -> inscricao.getParticipanteId().equals(participanteId))
                         .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            }
-            @Override public void remover(InscricaoId id) { banco.remove(id); }
-            @Override public int contarPorParticipanteEEvento(UUID participanteId, UUID eventoId) {
-                int salvas = (int) banco.values().stream()
+        }).when(mockRepositorio).buscarPorParticipanteId(any(UUID.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(InscricaoId.class));
+        doAnswer(invocation -> {
+            UUID participanteId = invocation.getArgument(0);
+            UUID eventoId = invocation.getArgument(1);
+            int salvas = (int) banco.values().stream()
                         .filter(inscricao -> inscricao.getParticipanteId().equals(participanteId)
                                 && inscricao.getEventoId().equals(eventoId))
                         .count();
-                return inscricoesExistentes + salvas;
-            }
-            @Override public boolean existeConflitoDeHorario(UUID participanteId, LocalDateTime inicio, LocalDateTime fim) {
-                return conflitoHorario;
-            }
-        };
+            return inscricoesExistentes + salvas;
+        }).when(mockRepositorio).contarPorParticipanteEEvento(any(UUID.class), any(UUID.class));
+        doAnswer(invocation -> conflitoHorario)
+                .when(mockRepositorio).existeConflitoDeHorario(any(UUID.class), any(LocalDateTime.class), any(LocalDateTime.class));
+        return mockRepositorio;
     }
 
     @Dado("que o participante está autenticado")
@@ -136,6 +150,7 @@ public class GerenciarInscricaoSteps {
         assertNull(contexto.excecao);
         assertNotNull(inscricao);
         assertEquals(StatusInscricao.CONFIRMADA, inscricao.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(inscricao);
     }
 
     @E("o evento exige uma idade mínima maior do que a idade do participante")
@@ -189,6 +204,7 @@ public class GerenciarInscricaoSteps {
         assertNull(contexto.excecao);
         assertNotNull(inscricao);
         assertEquals(StatusInscricao.CONFIRMADA, inscricao.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(inscricao);
     }
 
     @E("o sistema informa ao segundo que não há mais vagas")
@@ -236,6 +252,7 @@ public class GerenciarInscricaoSteps {
     public void aInscricaoECancelada() {
         assertNull(contexto.excecao);
         assertEquals(StatusInscricao.CANCELADA, inscricao.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(inscricao);
     }
 
     @E("o valor total é devolvido ao participante")

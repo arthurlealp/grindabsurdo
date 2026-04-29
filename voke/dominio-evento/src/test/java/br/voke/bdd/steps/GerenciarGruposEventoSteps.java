@@ -11,13 +11,17 @@ import io.cucumber.java.pt.Quando;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarGruposEventoSteps {
     private final ContextoEvento contexto;
@@ -31,14 +35,23 @@ public class GerenciarGruposEventoSteps {
     }
 
     private GrupoEventoRepositorio criarRepo() {
-        return new GrupoEventoRepositorio() {
-            @Override public void salvar(GrupoEvento grupo) { banco.put(grupo.getId(), grupo); }
-            @Override public Optional<GrupoEvento> buscarPorId(GrupoEventoId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public Optional<GrupoEvento> buscarPorEventoId(UUID eventoId) {
-                return banco.values().stream().filter(grupo -> grupo.getEventoId().equals(eventoId)).findFirst();
-            }
-            @Override public void remover(GrupoEventoId id) { banco.remove(id); }
-        };
+        GrupoEventoRepositorio mockRepositorio = mock(GrupoEventoRepositorio.class);
+        doAnswer(invocation -> {
+            GrupoEvento grupoSalvo = invocation.getArgument(0);
+            banco.put(grupoSalvo.getId(), grupoSalvo);
+            return null;
+        }).when(mockRepositorio).salvar(any(GrupoEvento.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(GrupoEventoId.class));
+        doAnswer(invocation -> {
+            UUID eventoId = invocation.getArgument(0);
+            return banco.values().stream().filter(grupo -> grupo.getEventoId().equals(eventoId)).findFirst();
+        }).when(mockRepositorio).buscarPorEventoId(any(UUID.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(GrupoEventoId.class));
+        return mockRepositorio;
     }
 
     @E("o evento está ativo")
@@ -64,6 +77,7 @@ public class GerenciarGruposEventoSteps {
         assertNull(contexto.excecao);
         assertNotNull(grupo);
         assertTrueBuscarPorEvento();
+        verify(repositorio, atLeastOnce()).salvar(grupo);
     }
 
     private void assertTrueBuscarPorEvento() {
@@ -101,6 +115,7 @@ public class GerenciarGruposEventoSteps {
         assertNull(contexto.excecao);
         assertNotNull(grupo);
         assertFalse(grupo.getMembrosIds().isEmpty());
+        verify(repositorio, atLeastOnce()).salvar(grupo);
     }
 
     @Quando("ele tenta acessar o grupo do evento")
@@ -159,6 +174,7 @@ public class GerenciarGruposEventoSteps {
     public void asNovasRegrasSaoSalvas() {
         assertNull(contexto.excecao);
         assertEquals("Novas regras", grupo.getRegras());
+        verify(repositorio, atLeastOnce()).salvar(grupo);
     }
 
     @Dado("que o evento foi encerrado")
@@ -183,6 +199,7 @@ public class GerenciarGruposEventoSteps {
     public void oGrupoERemovidoAutomaticamente() {
         assertNull(contexto.excecao);
         assertFalse(repositorio.buscarPorId(grupo.getId()).isPresent());
+        verify(repositorio).remover(grupo.getId());
     }
 
     @Quando("ele exclui o grupo")
@@ -198,6 +215,7 @@ public class GerenciarGruposEventoSteps {
     public void oGrupoERemovidoEParticipantesPerdamAcesso() {
         assertNull(contexto.excecao);
         assertFalse(repositorio.buscarPorId(grupo.getId()).isPresent());
+        verify(repositorio).remover(grupo.getId());
     }
 
     private void prepararGrupoSeNecessario() {

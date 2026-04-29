@@ -9,6 +9,11 @@ import br.voke.dominio.fidelidade.recompensa.*;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarRecompensasSteps {
     private final ContextoFidelidade ctx;
@@ -20,14 +25,23 @@ public class GerenciarRecompensasSteps {
     }
 
     private RecompensaRepositorio criarRepo() {
-        return new RecompensaRepositorio() {
-            @Override public void salvar(Recompensa r) { banco.put(r.getId(), r); }
-            @Override public Optional<Recompensa> buscarPorId(RecompensaId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public List<Recompensa> buscarPorOrganizadorId(UUID organizadorId) {
-                return banco.values().stream().filter(r -> r.getOrganizadorId().equals(organizadorId)).toList();
-            }
-            @Override public void remover(RecompensaId id) { banco.remove(id); }
-        };
+        RecompensaRepositorio mockRepositorio = mock(RecompensaRepositorio.class);
+        doAnswer(invocation -> {
+            Recompensa recompensaSalva = invocation.getArgument(0);
+            banco.put(recompensaSalva.getId(), recompensaSalva);
+            return null;
+        }).when(mockRepositorio).salvar(any(Recompensa.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(RecompensaId.class));
+        doAnswer(invocation -> {
+            UUID organizadorId = invocation.getArgument(0);
+            return banco.values().stream().filter(r -> r.getOrganizadorId().equals(organizadorId)).toList();
+        }).when(mockRepositorio).buscarPorOrganizadorId(any(UUID.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(RecompensaId.class));
+        return mockRepositorio;
     }
 
     @Dado("que o organizador está autenticado")
@@ -42,7 +56,7 @@ public class GerenciarRecompensasSteps {
     }
 
     @Então("a recompensa fica disponível para resgate pelos participantes")
-    public void aRecompensaFicaDisponivel() { assertNull(ctx.excecao); assertNotNull(ctx.recompensa); }
+    public void aRecompensaFicaDisponivel() { assertNull(ctx.excecao); assertNotNull(ctx.recompensa); verify(repositorio).salvar(ctx.recompensa); }
 
     @E("nenhum participante está resgatando a recompensa no momento")
     public void nenhumParticipanteResgatando() {
@@ -98,7 +112,7 @@ public class GerenciarRecompensasSteps {
     }
 
     @Então("o resgate do participante é concluído com os valores anteriores")
-    public void resgateConcluidoComValoresAnteriores() { assertEquals(99, ctx.recompensa.getEstoqueRestante()); }
+    public void resgateConcluidoComValoresAnteriores() { assertEquals(99, ctx.recompensa.getEstoqueRestante()); verify(repositorio, atLeastOnce()).salvar(ctx.recompensa); }
 
     @E("a edição ou remoção é aplicada somente após a conclusão do resgate")
     public void edicaoAplicadaAposResgate() { /* confirmação */ }
@@ -109,5 +123,5 @@ public class GerenciarRecompensasSteps {
     }
 
     @Então("a recompensa é excluída e não aparece mais para os participantes")
-    public void aRecompensaEExcluida() { assertNull(ctx.excecao); assertFalse(repositorio.buscarPorId(ctx.recompensa.getId()).isPresent()); }
+    public void aRecompensaEExcluida() { assertNull(ctx.excecao); assertFalse(repositorio.buscarPorId(ctx.recompensa.getId()).isPresent()); verify(repositorio).remover(ctx.recompensa.getId()); }
 }

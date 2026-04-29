@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarNotificacoesSteps {
     private final ContextoEvento contexto;
@@ -34,16 +38,25 @@ public class GerenciarNotificacoesSteps {
     }
 
     private NotificacaoRepositorio criarRepo() {
-        return new NotificacaoRepositorio() {
-            @Override public void salvar(Notificacao notificacao) { banco.put(notificacao.getId(), notificacao); }
-            @Override public Optional<Notificacao> buscarPorId(NotificacaoId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public List<Notificacao> buscarPorEventoId(UUID eventoId) {
-                return banco.values().stream()
-                        .filter(notificacao -> notificacao.getEventoId().equals(eventoId))
-                        .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            }
-            @Override public void remover(NotificacaoId id) { banco.remove(id); }
-        };
+        NotificacaoRepositorio mockRepositorio = mock(NotificacaoRepositorio.class);
+        doAnswer(invocation -> {
+            Notificacao notificacaoSalva = invocation.getArgument(0);
+            banco.put(notificacaoSalva.getId(), notificacaoSalva);
+            return null;
+        }).when(mockRepositorio).salvar(any(Notificacao.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(NotificacaoId.class));
+        doAnswer(invocation -> {
+            UUID eventoId = invocation.getArgument(0);
+            return banco.values().stream()
+                    .filter(notificacao -> notificacao.getEventoId().equals(eventoId))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        }).when(mockRepositorio).buscarPorEventoId(any(UUID.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(NotificacaoId.class));
+        return mockRepositorio;
     }
 
     @E("o evento está ativo e possui participantes inscritos")
@@ -69,6 +82,7 @@ public class GerenciarNotificacoesSteps {
         assertNull(contexto.excecao);
         assertNotNull(notificacao);
         assertFalse(repositorio.buscarPorEventoId(notificacao.getEventoId()).isEmpty());
+        verify(repositorio, atLeastOnce()).salvar(notificacao);
     }
 
     @E("o evento foi cancelado")
@@ -117,6 +131,7 @@ public class GerenciarNotificacoesSteps {
     public void aNotificacaoAtualizada() {
         assertNull(contexto.excecao);
         assertEquals("Conteúdo atualizado", notificacao.getConteudo());
+        verify(repositorio, atLeastOnce()).salvar(notificacao);
     }
 
     @E("é exibida com o indicador de {string} no sistema")
@@ -137,6 +152,7 @@ public class GerenciarNotificacoesSteps {
     public void aNotificacaoERemovidaDoSistema() {
         assertNull(contexto.excecao);
         assertFalse(repositorio.buscarPorId(notificacao.getId()).isPresent());
+        verify(repositorio).remover(notificacao.getId());
     }
 
     @Dado("que o participante tinha inscrição no evento antes do cancelamento")

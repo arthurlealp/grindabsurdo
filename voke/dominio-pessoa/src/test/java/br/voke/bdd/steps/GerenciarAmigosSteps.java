@@ -13,6 +13,11 @@ import br.voke.dominio.pessoa.participante.ParticipanteId;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarAmigosSteps {
 
@@ -29,25 +34,39 @@ public class GerenciarAmigosSteps {
     }
 
     private AmizadeRepositorio criarRepositorioEmMemoria() {
-        return new AmizadeRepositorio() {
-            @Override public void salvar(Amizade a) { banco.put(a.getId(), a); }
-            @Override public Optional<Amizade> buscarPorId(AmizadeId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public void remover(AmizadeId id) { banco.remove(id); }
-            @Override public boolean existeEntreParticipantes(ParticipanteId a, ParticipanteId b) {
-                return banco.values().stream().anyMatch(am ->
+        AmizadeRepositorio mockRepositorio = mock(AmizadeRepositorio.class);
+        doAnswer(invocation -> {
+            Amizade amizadeSalva = invocation.getArgument(0);
+            banco.put(amizadeSalva.getId(), amizadeSalva);
+            return null;
+        }).when(mockRepositorio).salvar(any(Amizade.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(AmizadeId.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(AmizadeId.class));
+        doAnswer(invocation -> {
+            ParticipanteId a = invocation.getArgument(0);
+            ParticipanteId b = invocation.getArgument(1);
+            return banco.values().stream().anyMatch(am ->
                     (am.getSolicitanteId().equals(a) && am.getReceptorId().equals(b)) ||
-                    (am.getSolicitanteId().equals(b) && am.getReceptorId().equals(a))
-                );
-            }
-            @Override public List<Amizade> buscarPorParticipante(ParticipanteId pid) {
-                return banco.values().stream()
-                        .filter(am -> am.getSolicitanteId().equals(pid) || am.getReceptorId().equals(pid))
-                        .toList();
-            }
-            @Override public List<Amizade> buscarAtivasPorParticipante(ParticipanteId pid) {
-                return buscarPorParticipante(pid).stream().filter(Amizade::estaAtiva).toList();
-            }
-        };
+                            (am.getSolicitanteId().equals(b) && am.getReceptorId().equals(a)));
+        }).when(mockRepositorio).existeEntreParticipantes(any(ParticipanteId.class), any(ParticipanteId.class));
+        doAnswer(invocation -> {
+            ParticipanteId pid = invocation.getArgument(0);
+            return banco.values().stream()
+                    .filter(am -> am.getSolicitanteId().equals(pid) || am.getReceptorId().equals(pid))
+                    .toList();
+        }).when(mockRepositorio).buscarPorParticipante(any(ParticipanteId.class));
+        doAnswer(invocation -> {
+            ParticipanteId pid = invocation.getArgument(0);
+            return banco.values().stream()
+                    .filter(am -> am.getSolicitanteId().equals(pid) || am.getReceptorId().equals(pid))
+                    .filter(Amizade::estaAtiva)
+                    .toList();
+        }).when(mockRepositorio).buscarAtivasPorParticipante(any(ParticipanteId.class));
+        return mockRepositorio;
     }
 
     private Amizade criarAmizadePendente() {
@@ -76,6 +95,7 @@ public class GerenciarAmigosSteps {
         assertNull(ctx.excecao);
         assertNotNull(amizade);
         assertEquals(StatusAmizade.PENDENTE, amizade.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(amizade);
     }
 
     @Dado("que o participante recebeu uma solicitação de amizade")
@@ -99,6 +119,7 @@ public class GerenciarAmigosSteps {
         assertNull(ctx.excecao);
         Amizade atualizada = repositorio.buscarPorId(amizade.getId()).orElseThrow();
         assertEquals(StatusAmizade.ATIVA, atualizada.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(amizade);
     }
 
     @Quando("ele recusa a solicitação")
@@ -113,6 +134,7 @@ public class GerenciarAmigosSteps {
         assertNull(ctx.excecao);
         Amizade atualizada = repositorio.buscarPorId(amizade.getId()).orElseThrow();
         assertEquals(StatusAmizade.RECUSADA, atualizada.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(amizade);
     }
 
     @Dado("que o participante possui menos de 16 anos")
@@ -226,5 +248,6 @@ public class GerenciarAmigosSteps {
         assertNull(ctx.excecao);
         Amizade atualizada = repositorio.buscarPorId(amizade.getId()).orElseThrow();
         assertEquals(StatusAmizade.DESFEITA, atualizada.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(amizade);
     }
 }

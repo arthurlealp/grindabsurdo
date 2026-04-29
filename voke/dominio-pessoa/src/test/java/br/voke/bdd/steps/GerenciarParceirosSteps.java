@@ -11,6 +11,10 @@ import br.voke.dominio.pessoa.participante.ParticipanteId;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarParceirosSteps {
 
@@ -26,19 +30,30 @@ public class GerenciarParceirosSteps {
     }
 
     private ParceiroRepositorio criarRepositorioEmMemoria() {
-        return new ParceiroRepositorio() {
-            @Override public void salvar(Parceiro p) { banco.put(p.getId(), p); }
-            @Override public Optional<Parceiro> buscarPorId(ParceiroId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public void remover(ParceiroId id) { banco.remove(id); }
-            @Override public List<Parceiro> buscarPorOrganizador(OrganizadorId organizadorId) {
-                return banco.values().stream().filter(p -> p.getOrganizadorId().equals(organizadorId)).toList();
-            }
-            @Override public Optional<Parceiro> buscarPorParticipanteEOrganizador(ParticipanteId pid, OrganizadorId oid) {
-                return banco.values().stream()
-                        .filter(p -> p.getParticipanteId().equals(pid) && p.getOrganizadorId().equals(oid))
-                        .findFirst();
-            }
-        };
+        ParceiroRepositorio mockRepositorio = mock(ParceiroRepositorio.class);
+        doAnswer(invocation -> {
+            Parceiro parceiroSalvo = invocation.getArgument(0);
+            banco.put(parceiroSalvo.getId(), parceiroSalvo);
+            return null;
+        }).when(mockRepositorio).salvar(any(Parceiro.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(ParceiroId.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(ParceiroId.class));
+        doAnswer(invocation -> {
+            OrganizadorId organizadorId = invocation.getArgument(0);
+            return banco.values().stream().filter(p -> p.getOrganizadorId().equals(organizadorId)).toList();
+        }).when(mockRepositorio).buscarPorOrganizador(any(OrganizadorId.class));
+        doAnswer(invocation -> {
+            ParticipanteId pid = invocation.getArgument(0);
+            OrganizadorId oid = invocation.getArgument(1);
+            return banco.values().stream()
+                    .filter(p -> p.getParticipanteId().equals(pid) && p.getOrganizadorId().equals(oid))
+                    .findFirst();
+        }).when(mockRepositorio).buscarPorParticipanteEOrganizador(any(ParticipanteId.class), any(OrganizadorId.class));
+        return mockRepositorio;
     }
 
     @Dado("que o organizador está autenticado")
@@ -70,6 +85,7 @@ public class GerenciarParceirosSteps {
     public void oParceiroERegistradoComSucesso() {
         assertNull(ctx.excecao);
         assertNotNull(parceiro);
+        verify(repositorio).salvar(parceiro);
     }
 
     @E("o usuário participou de menos de 5 eventos do organizador")
@@ -165,5 +181,6 @@ public class GerenciarParceirosSteps {
     public void oParceiroERemovidoDoSistema() {
         assertNull(ctx.excecao);
         assertFalse(repositorio.buscarPorId(parceiro.getId()).isPresent());
+        verify(repositorio).remover(parceiro.getId());
     }
 }

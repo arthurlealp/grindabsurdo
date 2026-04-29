@@ -10,9 +10,12 @@ import br.voke.dominio.pessoa.participante.*;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarParticipanteSteps {
 
@@ -24,23 +27,35 @@ public class GerenciarParticipanteSteps {
     }
 
     private ParticipanteRepositorio criarRepositorioEmMemoria() {
-        return new ParticipanteRepositorio() {
-            @Override public void salvar(Participante p) { banco.put(p.getId(), p); }
-            @Override public Optional<Participante> buscarPorId(ParticipanteId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public void remover(ParticipanteId id) { banco.remove(id); }
-            @Override public boolean existePorCpf(Cpf cpf) {
-                return banco.values().stream().anyMatch(p -> p.getCpf().equals(cpf));
-            }
-            @Override public boolean existePorEmail(Email email) {
-                return banco.values().stream().anyMatch(p -> p.getEmail().equals(email));
-            }
-            @Override public Optional<Participante> buscarPorEmail(Email email) {
-                return banco.values().stream().filter(p -> p.getEmail().equals(email)).findFirst();
-            }
-            @Override public Optional<Participante> buscarPorCpf(Cpf cpf) {
-                return banco.values().stream().filter(p -> p.getCpf().equals(cpf)).findFirst();
-            }
-        };
+        ParticipanteRepositorio mockRepositorio = mock(ParticipanteRepositorio.class);
+        doAnswer(invocation -> {
+            Participante participante = invocation.getArgument(0);
+            banco.put(participante.getId(), participante);
+            return null;
+        }).when(mockRepositorio).salvar(any(Participante.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(ParticipanteId.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(ParticipanteId.class));
+        doAnswer(invocation -> {
+            Cpf cpf = invocation.getArgument(0);
+            return banco.values().stream().anyMatch(p -> p.getCpf().equals(cpf));
+        }).when(mockRepositorio).existePorCpf(any(Cpf.class));
+        doAnswer(invocation -> {
+            Email email = invocation.getArgument(0);
+            return banco.values().stream().anyMatch(p -> p.getEmail().equals(email));
+        }).when(mockRepositorio).existePorEmail(any(Email.class));
+        doAnswer(invocation -> {
+            Email email = invocation.getArgument(0);
+            return banco.values().stream().filter(p -> p.getEmail().equals(email)).findFirst();
+        }).when(mockRepositorio).buscarPorEmail(any(Email.class));
+        doAnswer(invocation -> {
+            Cpf cpf = invocation.getArgument(0);
+            return banco.values().stream().filter(p -> p.getCpf().equals(cpf)).findFirst();
+        }).when(mockRepositorio).buscarPorCpf(any(Cpf.class));
+        return mockRepositorio;
     }
 
     private void inicializar() {
@@ -74,6 +89,7 @@ public class GerenciarParticipanteSteps {
     public void aContaECriadaComSucesso() {
         assertNull(ctx.excecao);
         assertNotNull(ctx.participante);
+        verify(ctx.repoParticipante).salvar(ctx.participante);
     }
 
     @E("o participante recebe uma confirmação de cadastro")
@@ -123,5 +139,6 @@ public class GerenciarParticipanteSteps {
     @E("o participante não consegue mais fazer login")
     public void oParticipanteNaoConsegueMaisFazerLogin() {
         assertFalse(ctx.repoParticipante.buscarPorId(ctx.participante.getId()).isPresent());
+        verify(ctx.repoParticipante).remover(ctx.participante.getId());
     }
 }

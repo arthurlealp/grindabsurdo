@@ -17,13 +17,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarEventoSteps {
 
@@ -38,22 +42,35 @@ public class GerenciarEventoSteps {
     }
 
     private EventoRepositorio criarRepositorioEmMemoria() {
-        return new EventoRepositorio() {
-            @Override public void salvar(Evento evento) { banco.put(evento.getId(), evento); }
-            @Override public Optional<Evento> buscarPorId(EventoId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public Optional<Evento> buscarPorNome(String nome) {
-                return banco.values().stream().filter(evento -> evento.getNome().equals(nome)).findFirst();
-            }
-            @Override public List<Evento> buscarPorLocalEPeriodo(String local, LocalDateTime inicio, LocalDateTime fim) {
-                return banco.values().stream()
+        EventoRepositorio mockRepositorio = mock(EventoRepositorio.class);
+        doAnswer(invocation -> {
+            Evento eventoSalvo = invocation.getArgument(0);
+            banco.put(eventoSalvo.getId(), eventoSalvo);
+            return null;
+        }).when(mockRepositorio).salvar(any(Evento.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(EventoId.class));
+        doAnswer(invocation -> {
+            String nome = invocation.getArgument(0);
+            return banco.values().stream().filter(evento -> evento.getNome().equals(nome)).findFirst();
+        }).when(mockRepositorio).buscarPorNome(any(String.class));
+        doAnswer(invocation -> {
+            String local = invocation.getArgument(0);
+            LocalDateTime inicio = invocation.getArgument(1);
+            LocalDateTime fim = invocation.getArgument(2);
+            return banco.values().stream()
                         .filter(evento -> evento.colideComHorario(local, inicio, fim))
                         .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            }
-            @Override public void remover(EventoId id) { banco.remove(id); }
-            @Override public boolean existePorNome(String nome) {
-                return banco.values().stream().anyMatch(evento -> evento.getNome().equals(nome));
-            }
-        };
+        }).when(mockRepositorio).buscarPorLocalEPeriodo(any(String.class), any(LocalDateTime.class), any(LocalDateTime.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(EventoId.class));
+        doAnswer(invocation -> {
+            String nome = invocation.getArgument(0);
+            return banco.values().stream().anyMatch(evento -> evento.getNome().equals(nome));
+        }).when(mockRepositorio).existePorNome(any(String.class));
+        return mockRepositorio;
     }
 
     @Dado("que o organizador está autenticado")
@@ -95,6 +112,7 @@ public class GerenciarEventoSteps {
     public void oEventoECriadoComSucesso() {
         assertNull(contexto.excecao);
         assertNotNull(evento);
+        verify(repositorio, atLeastOnce()).salvar(evento);
     }
 
     @Quando("ele tenta criar um evento com um nome já existente no sistema")
@@ -199,6 +217,7 @@ public class GerenciarEventoSteps {
         assertNull(contexto.excecao);
         Evento atualizado = repositorio.buscarPorId(evento.getId()).orElseThrow();
         assertEquals(StatusEvento.CANCELADO, atualizado.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(evento);
     }
 
     @E("todas as inscrições e lotes vinculados são cancelados automaticamente")

@@ -10,9 +10,12 @@ import br.voke.dominio.pessoa.organizador.*;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class GerenciarOrganizadorSteps {
 
@@ -24,23 +27,35 @@ public class GerenciarOrganizadorSteps {
     }
 
     private OrganizadorRepositorio criarRepositorioEmMemoria() {
-        return new OrganizadorRepositorio() {
-            @Override public void salvar(Organizador o) { banco.put(o.getId(), o); }
-            @Override public Optional<Organizador> buscarPorId(OrganizadorId id) { return Optional.ofNullable(banco.get(id)); }
-            @Override public void remover(OrganizadorId id) { banco.remove(id); }
-            @Override public boolean existePorCpf(Cpf cpf) {
-                return banco.values().stream().anyMatch(o -> o.getCpf().equals(cpf));
-            }
-            @Override public boolean existePorEmail(Email email) {
-                return banco.values().stream().anyMatch(o -> o.getEmail().equals(email));
-            }
-            @Override public Optional<Organizador> buscarPorEmail(Email email) {
-                return banco.values().stream().filter(o -> o.getEmail().equals(email)).findFirst();
-            }
-            @Override public Optional<Organizador> buscarPorCpf(Cpf cpf) {
-                return banco.values().stream().filter(o -> o.getCpf().equals(cpf)).findFirst();
-            }
-        };
+        OrganizadorRepositorio mockRepositorio = mock(OrganizadorRepositorio.class);
+        doAnswer(invocation -> {
+            Organizador organizador = invocation.getArgument(0);
+            banco.put(organizador.getId(), organizador);
+            return null;
+        }).when(mockRepositorio).salvar(any(Organizador.class));
+        doAnswer(invocation -> java.util.Optional.ofNullable(banco.get(invocation.getArgument(0))))
+                .when(mockRepositorio).buscarPorId(any(OrganizadorId.class));
+        doAnswer(invocation -> {
+            banco.remove(invocation.getArgument(0));
+            return null;
+        }).when(mockRepositorio).remover(any(OrganizadorId.class));
+        doAnswer(invocation -> {
+            Cpf cpf = invocation.getArgument(0);
+            return banco.values().stream().anyMatch(o -> o.getCpf().equals(cpf));
+        }).when(mockRepositorio).existePorCpf(any(Cpf.class));
+        doAnswer(invocation -> {
+            Email email = invocation.getArgument(0);
+            return banco.values().stream().anyMatch(o -> o.getEmail().equals(email));
+        }).when(mockRepositorio).existePorEmail(any(Email.class));
+        doAnswer(invocation -> {
+            Email email = invocation.getArgument(0);
+            return banco.values().stream().filter(o -> o.getEmail().equals(email)).findFirst();
+        }).when(mockRepositorio).buscarPorEmail(any(Email.class));
+        doAnswer(invocation -> {
+            Cpf cpf = invocation.getArgument(0);
+            return banco.values().stream().filter(o -> o.getCpf().equals(cpf)).findFirst();
+        }).when(mockRepositorio).buscarPorCpf(any(Cpf.class));
+        return mockRepositorio;
     }
 
     private void inicializar() {
@@ -71,6 +86,7 @@ public class GerenciarOrganizadorSteps {
     public void aContaDeOrganizadorECriadaComSucesso() {
         assertNull(ctx.excecao);
         assertNotNull(ctx.organizador);
+        verify(ctx.repoOrganizador).salvar(ctx.organizador);
     }
 
     @Quando("ele preenche os dados com uma data de nascimento indicando menos de 18 anos")
@@ -119,5 +135,6 @@ public class GerenciarOrganizadorSteps {
     @E("o organizador não consegue mais fazer login")
     public void oOrganizadorNaoConsegueMaisFazerLogin() {
         assertFalse(ctx.repoOrganizador.buscarPorId(ctx.organizador.getId()).isPresent());
+        verify(ctx.repoOrganizador).remover(ctx.organizador.getId());
     }
 }

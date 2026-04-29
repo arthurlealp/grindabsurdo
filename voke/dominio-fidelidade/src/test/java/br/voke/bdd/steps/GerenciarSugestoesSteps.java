@@ -128,4 +128,37 @@ public class GerenciarSugestoesSteps {
 
     @Então("a sugestão é excluída e não aparece mais para o usuário")
     public void aSugestaoEExcluida() { assertFalse(repositorio.buscarPorId(sugestao.getId()).isPresent()); verify(repositorio).remover(sugestao.getId()); }
+
+    @Dado("que uma sugestão foi enviada ao usuário e não foi avaliada dentro do prazo")
+    public void sugestaoEnviadaNaoAvaliadaDentroDoPrazo() {
+        banco.clear(); repositorio = criarRepo(); excecao = null;
+        sugestao = new Sugestao(SugestaoId.novo(), UUID.randomUUID(), UUID.randomUUID(), "Sugestão pendente expirada");
+        repositorio.salvar(sugestao);
+    }
+
+    @Quando("o sistema processa a expiração das sugestões pendentes")
+    public void sistemaProcessaExpiracaoDasSugestoesPendentes() {
+        try {
+            banco.values().stream()
+                    .filter(Sugestao::estaPendente)
+                    .forEach(s -> {
+                        s.expirar();
+                        repositorio.salvar(s);
+                    });
+        } catch (Exception e) {
+            excecao = e;
+        }
+    }
+
+    @Então("o status da sugestão é atualizado para expirada")
+    public void statusDaSugestaoAtualizadoParaExpirada() {
+        assertNull(excecao);
+        assertEquals(StatusSugestao.EXPIRADA, sugestao.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(sugestao);
+    }
+
+    @E("a sugestão não é mais apresentada ao usuário")
+    public void sugestaoNaoEApresentadaAoUsuario() {
+        assertFalse(sugestao.estaPendente());
+    }
 }

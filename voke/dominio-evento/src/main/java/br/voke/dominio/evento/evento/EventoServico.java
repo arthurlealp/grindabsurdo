@@ -11,10 +11,17 @@ import java.util.UUID;
 public class EventoServico {
 
     private final EventoRepositorio repositorio;
+    private final CancelamentoInscricoesEvento cancelamentoInscricoes;
 
     public EventoServico(EventoRepositorio repositorio) {
+        this(repositorio, eventoId -> { });
+    }
+
+    public EventoServico(EventoRepositorio repositorio, CancelamentoInscricoesEvento cancelamentoInscricoes) {
         Objects.requireNonNull(repositorio, "Repositório é obrigatório");
         this.repositorio = repositorio;
+        this.cancelamentoInscricoes = Objects.requireNonNull(cancelamentoInscricoes,
+                "Cancelamento de inscricoes e obrigatorio");
     }
 
     public Evento criar(String nome, String descricao, String local,
@@ -59,6 +66,7 @@ public class EventoServico {
         Evento evento = repositorio.buscarPorId(id)
                 .orElseThrow(() -> new IllegalArgumentException("Evento não encontrado"));
         evento.cancelar();
+        cancelamentoInscricoes.cancelarInscricoesDoEvento(evento.getId().getValor());
         repositorio.salvar(evento);
     }
 }

@@ -21,6 +21,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -47,6 +48,7 @@ public class GerenciarInscricaoSteps {
     private LocalDateTime eventoInicio;
     private LocalDateTime eventoFim;
     private LocalDateTime dataEventoCancelamento;
+    private boolean presencaRegistrada;
 
     public GerenciarInscricaoSteps(ContextoInscricao contexto) {
         this.contexto = contexto;
@@ -71,6 +73,7 @@ public class GerenciarInscricaoSteps {
         servico = new InscricaoServico(repositorio);
         inscricao = null;
         devolucao = null;
+        presencaRegistrada = false;
         contexto.excecao = null;
     }
 
@@ -278,5 +281,43 @@ public class GerenciarInscricaoSteps {
     @E("nenhum valor é devolvido ao participante")
     public void nenhumValorDevolvido() {
         assertEquals(0, BigDecimal.ZERO.compareTo(devolucao));
+    }
+
+    @Dado("que o participante possui inscrição confirmada no evento")
+    public void participantePossuiInscricaoConfirmadaNoEvento() {
+        prepararServico();
+        inscricao = tentarRealizarInscricao(participanteId, true);
+        assertNotNull(inscricao);
+        assertEquals(StatusInscricao.CONFIRMADA, inscricao.getStatus());
+        contexto.excecao = null;
+    }
+
+    @E("o evento está em andamento")
+    public void eventoEstaEmAndamento() {
+        eventoInicio = LocalDateTime.now().minusHours(1);
+        eventoFim = LocalDateTime.now().plusHours(2);
+    }
+
+    @Quando("ele realiza o check-in no evento")
+    public void eleRealizaCheckInNoEvento() {
+        try {
+            servico.realizarCheckIn(inscricao.getId(),
+                    !LocalDateTime.now().isBefore(eventoInicio) && !LocalDateTime.now().isAfter(eventoFim));
+            presencaRegistrada = true;
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
+    }
+
+    @Então("o status da inscrição é atualizado para check-in realizado")
+    public void statusDaInscricaoAtualizadoParaCheckIn() {
+        assertNull(contexto.excecao);
+        assertEquals(StatusInscricao.CHECK_IN_REALIZADO, inscricao.getStatus());
+        verify(repositorio, atLeastOnce()).salvar(inscricao);
+    }
+
+    @E("a presença do participante fica registrada para fins de pontuação")
+    public void presencaRegistradaParaPontuacao() {
+        assertTrue(presencaRegistrada);
     }
 }

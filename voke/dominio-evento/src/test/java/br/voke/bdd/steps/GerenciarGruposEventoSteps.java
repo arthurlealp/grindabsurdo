@@ -189,7 +189,7 @@ public class GerenciarGruposEventoSteps {
     @Quando("o sistema processa o encerramento do evento")
     public void oSistemaProcessaEncerramento() {
         try {
-            servico.remover(grupo.getId());
+            servico.removerPorEvento(grupo.getEventoId());
         } catch (Exception e) {
             contexto.excecao = e;
         }

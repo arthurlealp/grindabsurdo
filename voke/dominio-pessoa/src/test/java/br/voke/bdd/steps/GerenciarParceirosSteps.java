@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 
 public class GerenciarParceirosSteps {
@@ -24,7 +25,6 @@ public class GerenciarParceirosSteps {
     private ParceiroRepositorio repositorio;
     private PresencaConsulta presencaConsulta;
     private Parceiro parceiro;
-    private BigDecimal saldoComissaoParceiro = BigDecimal.ZERO;
     private final Map<ParceiroId, Parceiro> banco = new HashMap<>();
 
     public GerenciarParceirosSteps(ContextoPessoa ctx) {
@@ -149,16 +149,18 @@ public class GerenciarParceirosSteps {
 
     @Quando("a compra é concluída com sucesso")
     public void aCompraEConcluida() {
-        assertNotNull(parceiro);
-        BigDecimal valorCompra = new BigDecimal("200.00");
-        BigDecimal percentualComissao = new BigDecimal("0.10");
-        saldoComissaoParceiro = saldoComissaoParceiro.add(valorCompra.multiply(percentualComissao));
+        try {
+            servico.creditarComissaoPorCompra(parceiro.getId(), new BigDecimal("200.00"), new BigDecimal("0.10"));
+            parceiro = repositorio.buscarPorId(parceiro.getId()).orElseThrow();
+        } catch (Exception e) { ctx.excecao = e; }
     }
 
     @Então("o parceiro recebe automaticamente um valor em saldo conforme as regras")
     public void oParceiroRecebeSaldo() {
+        assertNull(ctx.excecao);
         assertNotNull(parceiro);
-        assertEquals(0, new BigDecimal("20.00").compareTo(saldoComissaoParceiro));
+        assertEquals(0, new BigDecimal("20.00").compareTo(parceiro.getSaldoComissao()));
+        verify(repositorio, atLeastOnce()).salvar(parceiro);
     }
 
     @E("o parceiro está cadastrado")

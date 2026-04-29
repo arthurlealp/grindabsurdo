@@ -4,6 +4,7 @@ import br.voke.dominio.fidelidade.carteira.CarteiraVirtual;
 import br.voke.dominio.fidelidade.carteira.CarteiraVirtualId;
 import br.voke.dominio.fidelidade.carteira.CarteiraVirtualRepositorio;
 import br.voke.dominio.fidelidade.carteira.CarteiraVirtualServico;
+import io.cucumber.java.pt.Dado;
 import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
 import io.cucumber.java.pt.Quando;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -158,5 +160,62 @@ public class GerenciarCarteiraSteps {
         } catch (Exception e) {
             ctx.excecao = e;
         }
+    }
+
+    @Dado("que o participante possui saldo suficiente na carteira")
+    public void participantePossuiSaldoSuficienteNaCarteira() {
+        participanteAtual();
+        servico.creditar(participanteAtual(), new BigDecimal("1000.00"));
+        ctx.excecao = null;
+    }
+
+    @Quando("o sistema processa o pagamento de uma compra cujo valor excede o limite individual de remoção")
+    public void sistemaProcessaPagamentoAcimaDoLimiteIndividualDeRemocao() {
+        try {
+            servico.debitar(participanteAtual(), new BigDecimal("750.00"));
+        } catch (Exception e) {
+            ctx.excecao = e;
+        }
+    }
+
+    @Então("o saldo é debitado com sucesso")
+    public void saldoDebitadoComSucesso() {
+        assertNull(ctx.excecao);
+        assertEquals(0, new BigDecimal("250.00").compareTo(ctx.carteira.getSaldo()));
+        verify(repositorio, atLeastOnce()).salvar(ctx.carteira);
+    }
+
+    @E("nenhum erro de limite de remoção é lançado")
+    public void nenhumErroDeLimiteDeRemocaoLancado() {
+        assertNull(ctx.excecao);
+    }
+
+    @Dado("que o participante atingiu o limite diário de inserção de saldo")
+    public void participanteAtingiuLimiteDiarioDeInsercaoDeSaldo() {
+        servico.adicionarSaldo(participanteAtual(), new BigDecimal("5000.00"));
+        ctx.excecao = null;
+    }
+
+    @Quando("o sistema processa a virada do dia")
+    public void sistemaProcessaViradaDoDia() {
+        ctx.carteira.resetarLimiteDiario();
+        repositorio.salvar(ctx.carteira);
+    }
+
+    @Então("o contador de inserção diária é reiniciado")
+    public void contadorDeInsercaoDiariaReiniciado() {
+        assertEquals(0, BigDecimal.ZERO.compareTo(ctx.carteira.getTotalInseridoHoje()));
+        verify(repositorio, atLeastOnce()).salvar(ctx.carteira);
+    }
+
+    @E("o participante pode voltar a adicionar saldo normalmente")
+    public void participantePodeVoltarAAdicionarSaldoNormalmente() {
+        try {
+            servico.adicionarSaldo(participanteAtual(), new BigDecimal("100.00"));
+        } catch (Exception e) {
+            ctx.excecao = e;
+        }
+        assertNull(ctx.excecao);
+        assertEquals(0, new BigDecimal("5100.00").compareTo(ctx.carteira.getSaldo()));
     }
 }

@@ -5,6 +5,7 @@ import br.voke.dominio.pessoa.excecao.LimiteAtividadesException;
 import br.voke.dominio.pessoa.organizador.OrganizadorId;
 import br.voke.dominio.pessoa.participante.ParticipanteId;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Objects;
@@ -17,6 +18,7 @@ public class Parceiro extends EntidadeBase<ParceiroId> {
     private final ParticipanteId participanteId;
     private final OrganizadorId organizadorId;
     private final Set<AtividadeParceiro> atividades;
+    private BigDecimal saldoComissao;
 
     public Parceiro(ParceiroId id, ParticipanteId participanteId, OrganizadorId organizadorId,
                     Set<AtividadeParceiro> atividadesIniciais) {
@@ -32,6 +34,7 @@ public class Parceiro extends EntidadeBase<ParceiroId> {
         this.atividades = EnumSet.copyOf(atividadesIniciais.isEmpty()
                 ? EnumSet.noneOf(AtividadeParceiro.class)
                 : atividadesIniciais);
+        this.saldoComissao = BigDecimal.ZERO;
     }
 
     public void adicionarAtividade(AtividadeParceiro atividade) {
@@ -46,7 +49,20 @@ public class Parceiro extends EntidadeBase<ParceiroId> {
         atividades.remove(atividade);
     }
 
+    public void creditarComissao(BigDecimal valorCompra, BigDecimal percentualComissao) {
+        Objects.requireNonNull(valorCompra, "Valor da compra Ã© obrigatÃ³rio");
+        Objects.requireNonNull(percentualComissao, "Percentual de comissÃ£o Ã© obrigatÃ³rio");
+        if (valorCompra.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Valor da compra deve ser positivo");
+        }
+        if (percentualComissao.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Percentual de comissÃ£o nÃ£o pode ser negativo");
+        }
+        this.saldoComissao = this.saldoComissao.add(valorCompra.multiply(percentualComissao));
+    }
+
     public ParticipanteId getParticipanteId() { return participanteId; }
     public OrganizadorId getOrganizadorId() { return organizadorId; }
     public Set<AtividadeParceiro> getAtividades() { return Collections.unmodifiableSet(atividades); }
+    public BigDecimal getSaldoComissao() { return saldoComissao; }
 }

@@ -64,6 +64,7 @@ public class GerenciarParticipanteSteps {
         ctx.servicoParticipante = new ParticipanteServico(ctx.repoParticipante);
         ctx.atorAtual = ContextoPessoa.Ator.PARTICIPANTE;
         ctx.excecao = null;
+        ctx.mensagemSistema = null;
         ctx.participante = null;
     }
 
@@ -122,6 +123,46 @@ public class GerenciarParticipanteSteps {
         } catch (Exception e) { ctx.excecao = e; }
     }
 
+    @Quando("ele preenche os dados com a senha {string}")
+    public void elePreencheOsDadosComSenha(String senha) {
+        try {
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("João Silva"), new Cpf("529.982.247-25"),
+                    new Email("joao@email.com"), new Senha(senha),
+                    new DataNascimento(LocalDate.of(2000, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
+    }
+
+    @Quando("ele preenche os dados com um nome de menos de 3 caracteres")
+    public void elePreencheOsDadosComNomeCurto() {
+        try {
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("Jo"), new Cpf("529.982.247-25"),
+                    new Email("joao@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(2000, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
+    }
+
+    @Quando("ele preenche os dados com um e-mail sem o símbolo {string} ou sem domínio")
+    public void elePreencheOsDadosComEmailInvalido(String simbolo) {
+        try {
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("João Silva"), new Cpf("529.982.247-25"),
+                    new Email("joao.email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(2000, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
+    }
+
+    @Quando("ele preenche os dados com uma data de nascimento no futuro")
+    public void elePreencheOsDadosComDataNascimentoNoFuturo() {
+        try {
+            ctx.participante = ctx.servicoParticipante.cadastrar(
+                    new NomeCompleto("João Silva"), new Cpf("529.982.247-25"),
+                    new Email("joao@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.now().plusDays(1)));
+        } catch (Exception e) { ctx.excecao = e; }
+    }
+
     @Dado("que o participante está autenticado no sistema")
     public void queOParticipanteEstaAutenticado() {
         inicializar();
@@ -136,6 +177,7 @@ public class GerenciarParticipanteSteps {
         try {
             ctx.servicoParticipante.atualizarDados(ctx.participante.getId(),
                     new NomeCompleto("João Atualizado"), new Email("novo@email.com"));
+            ctx.mensagemSistema = "Dados atualizados com sucesso";
         } catch (Exception e) { ctx.excecao = e; }
     }
 

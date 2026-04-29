@@ -4,6 +4,8 @@ import io.cucumber.java.pt.Dado;
 import io.cucumber.java.pt.Quando;
 import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
+import br.voke.dominio.fidelidade.pontos.ContaPontos;
+import br.voke.dominio.fidelidade.pontos.ContaPontosId;
 import br.voke.dominio.fidelidade.recompensa.*;
 
 import java.util.*;
@@ -107,12 +109,14 @@ public class GerenciarRecompensasSteps {
     @E("o organizador tenta editar ou remover essa recompensa simultaneamente")
     public void organizadorTentaEditarSimultaneamente() {
         assertTrue(ctx.recompensa.estaDisponivel());
+        ctx.recompensa.iniciarResgate();
+        assertTrue(ctx.recompensa.isResgateEmAndamento());
         alteracaoPendenteDuranteResgate = true;
     }
 
     @Quando("o sistema processa as duas operações concorrentes")
     public void sistemaProcessaOperacoesConcorrentes() {
-        ctx.recompensa.resgatar();
+        ctx.recompensa.concluirResgate();
         repositorio.salvar(ctx.recompensa);
         if (alteracaoPendenteDuranteResgate) {
             ctx.recompensa.atualizarDescricao("Alteração aplicada após resgate");
@@ -134,4 +138,60 @@ public class GerenciarRecompensasSteps {
 
     @Então("a recompensa é excluída e não aparece mais para os participantes")
     public void aRecompensaEExcluida() { assertNull(ctx.excecao); assertFalse(repositorio.buscarPorId(ctx.recompensa.getId()).isPresent()); verify(repositorio).remover(ctx.recompensa.getId()); }
+
+    @Dado("que o participante possui saldo de pontos suficiente")
+    public void participantePossuiSaldoDePontosSuficiente() {
+        banco.clear(); repositorio = criarRepo(); ctx.excecao = null;
+        ctx.conta = new ContaPontos(ContaPontosId.novo(), UUID.randomUUID());
+        ctx.conta.creditarPorPresenca(1000);
+    }
+
+    @E("a recompensa atingiu o limite de resgates e está esgotada")
+    public void recompensaAtingiuLimiteDeResgates() {
+        ctx.recompensa = new Recompensa(RecompensaId.novo(), "Ingresso VIP", "Experiência exclusiva", 500, 1, UUID.randomUUID());
+        ctx.recompensa.resgatar();
+        repositorio.salvar(ctx.recompensa);
+    }
+
+    @Quando("ele tenta resgatar a recompensa")
+    public void eleTentaResgatarRecompensa() {
+        try {
+            ctx.conta.debitar(ctx.recompensa.getCustoEmPontos());
+            ctx.recompensa.resgatar();
+            repositorio.salvar(ctx.recompensa);
+        } catch (Exception e) {
+            ctx.excecao = e;
+        }
+    }
+
+    @E("a recompensa está ativa no catálogo")
+    public void recompensaEstaAtivaNoCatalogo() {
+        if (ctx.recompensa == null) {
+            ctx.recompensa = new Recompensa(RecompensaId.novo(), "Voucher", "Desconto", 300, 100, UUID.randomUUID());
+            repositorio.salvar(ctx.recompensa);
+        }
+        assertTrue(ctx.recompensa.isAtiva());
+    }
+
+    @Quando("ele inativa a recompensa")
+    public void eleInativaARecompensa() {
+        try {
+            ctx.recompensa.inativar();
+            repositorio.salvar(ctx.recompensa);
+        } catch (Exception e) {
+            ctx.excecao = e;
+        }
+    }
+
+    @Então("a recompensa deixa de aparecer para os participantes")
+    public void recompensaDeixaDeAparecerParaParticipantes() {
+        assertNull(ctx.excecao);
+        assertFalse(ctx.recompensa.estaDisponivel());
+    }
+
+    @E("permanece registrada no sistema sem ser excluída")
+    public void recompensaPermaneceRegistradaSemSerExcluida() {
+        assertTrue(repositorio.buscarPorId(ctx.recompensa.getId()).isPresent());
+        verify(repositorio, atLeastOnce()).salvar(ctx.recompensa);
+    }
 }

@@ -171,6 +171,15 @@ public class GerenciarCuponsSteps {
         cupom = servico.criar("EDITAR10", new BigDecimal("10.00"), UUID.randomUUID(), null, 100);
     }
 
+    @E("o cupom já foi utilizado por ao menos um participante")
+    public void oCupomJaFoiUtilizadoPorParticipante() {
+        if (cupom == null) {
+            cupom = servico.criar("UTILIZADO10", new BigDecimal("10.00"), UUID.randomUUID(), null, 100);
+        }
+        cupom.utilizar("444.444.444-44");
+        repositorio.salvar(cupom);
+    }
+
     @Quando("ele edita o desconto ou a quantidade máxima de usos")
     public void eleEditaDesconto() {
         try {
@@ -179,6 +188,20 @@ public class GerenciarCuponsSteps {
         } catch (Exception e) {
             contexto.excecao = e;
         }
+    }
+
+    @Quando("ele tenta alterar o desconto do cupom")
+    public void eleTentaAlterarDescontoDoCupom() {
+        try {
+            servico.editar(cupom.getId(), new BigDecimal("25.00"), cupom.getQuantidadeMaxima());
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
+    }
+
+    @Então("o sistema rejeita a alteração")
+    public void oSistemaRejeitaAlteracao() {
+        assertNotNull(contexto.excecao);
     }
 
     @Quando("ele exclui o cupom")

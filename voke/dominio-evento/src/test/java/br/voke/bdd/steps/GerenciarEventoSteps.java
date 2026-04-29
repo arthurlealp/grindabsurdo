@@ -1,5 +1,6 @@
 package br.voke.bdd.steps;
 
+import br.voke.dominio.evento.evento.CancelamentoInscricoesEvento;
 import br.voke.dominio.evento.evento.Evento;
 import br.voke.dominio.evento.evento.EventoId;
 import br.voke.dominio.evento.evento.EventoRepositorio;
@@ -34,6 +35,7 @@ public class GerenciarEventoSteps {
     private final ContextoEvento contexto;
     private final Map<EventoId, Evento> banco = new HashMap<>();
     private EventoRepositorio repositorio;
+    private CancelamentoInscricoesEvento cancelamentoInscricoes;
     private EventoServico servico;
     private Evento evento;
 
@@ -77,9 +79,10 @@ public class GerenciarEventoSteps {
     public void organizadorAutenticado() {
         banco.clear();
         repositorio = criarRepositorioEmMemoria();
-        servico = new EventoServico(repositorio);
         contexto.excecao = null;
         evento = null;
+        cancelamentoInscricoes = mock(CancelamentoInscricoesEvento.class);
+        servico = new EventoServico(repositorio, cancelamentoInscricoes);
     }
 
     @Quando("ele preenche nome, local, data, horário, número de vagas, preço e cria um lote")
@@ -157,10 +160,32 @@ public class GerenciarEventoSteps {
                 100, UUID.randomUUID(), lote, 0);
     }
 
+    @E("o evento possui capacidade máxima definida")
+    public void oEventoPossuiCapacidadeMaximaDefinida() {
+        Lote lote = new Lote(1, new BigDecimal("50.00"), 100);
+        evento = servico.criar("Evento com Capacidade", "desc", "Local Capacidade",
+                LocalDateTime.now().plusDays(16), LocalDateTime.now().plusDays(16).plusHours(2),
+                100, UUID.randomUUID(), lote, 0);
+    }
+
+    @E("o lote anterior foi encerrado")
+    public void loteAnteriorFoiEncerrado() {
+        evento.getLoteAtual().encerrar();
+    }
+
     @Quando("ele tenta criar um novo lote para o mesmo evento")
     public void eleTentaCriarNovoLote() {
         try {
             evento.criarNovoLote(new Lote(2, new BigDecimal("70.00"), 50));
+        } catch (Exception e) {
+            contexto.excecao = e;
+        }
+    }
+
+    @Quando("ele tenta criar um novo lote com quantidade superior à capacidade máxima do evento")
+    public void eleTentaCriarNovoLoteAcimaDaCapacidadeMaxima() {
+        try {
+            evento.criarNovoLote(new Lote(2, new BigDecimal("70.00"), evento.getCapacidadeMaxima() + 1));
         } catch (Exception e) {
             contexto.excecao = e;
         }
@@ -223,5 +248,7 @@ public class GerenciarEventoSteps {
     @E("todas as inscrições e lotes vinculados são cancelados automaticamente")
     public void todasAsInscricoesSaoCanceladas() {
         assertNull(contexto.excecao);
+        verify(cancelamentoInscricoes).cancelarInscricoesDoEvento(evento.getId().getValor());
+        assertFalse(evento.getLoteAtual().isAtivo());
     }
 }

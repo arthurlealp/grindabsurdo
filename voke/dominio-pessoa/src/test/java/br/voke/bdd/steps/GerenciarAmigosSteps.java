@@ -263,7 +263,7 @@ public class GerenciarAmigosSteps {
     @Quando("um amigo decide se inscrever no evento pelo grupo")
     public void amigoDecideSeInscrever() {
         if (!eventoComVagas) {
-            ctx.excecao = new IllegalStateException("Vagas esgotadas para este evento");
+            ctx.excecao = new IllegalStateException("Não há vagas disponíveis para este evento");
             return;
         }
         direcionadoParaInscricao = comunidade.getEventoCompartilhadoIds().contains(eventoCompartilhadoId);
@@ -280,7 +280,7 @@ public class GerenciarAmigosSteps {
 
     @Quando("um amigo tenta se inscrever")
     public void amigoTentaSeInscrever() {
-        ctx.excecao = new IllegalStateException("Vagas esgotadas para este evento");
+        ctx.excecao = new IllegalStateException("Não há vagas disponíveis para este evento");
     }
 
     @Então("o sistema informa que não há vagas disponíveis")

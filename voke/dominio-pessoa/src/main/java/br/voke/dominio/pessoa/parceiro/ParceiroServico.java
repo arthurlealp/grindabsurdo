@@ -5,6 +5,7 @@ import br.voke.dominio.pessoa.excecao.PresencaInsuficienteException;
 import br.voke.dominio.pessoa.organizador.OrganizadorId;
 import br.voke.dominio.pessoa.participante.ParticipanteId;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Set;
 
@@ -51,5 +52,12 @@ public class ParceiroServico {
         repositorio.buscarPorId(parceiroId)
                 .orElseThrow(() -> new IllegalArgumentException("Parceiro não encontrado"));
         repositorio.remover(parceiroId);
+    }
+    public void creditarComissaoPorCompra(ParceiroId parceiroId, BigDecimal valorCompra,
+                                          BigDecimal percentualComissao) {
+        Parceiro parceiro = repositorio.buscarPorId(parceiroId)
+                .orElseThrow(() -> new IllegalArgumentException("Parceiro nao encontrado"));
+        parceiro.creditarComissao(valorCompra, percentualComissao);
+        repositorio.salvar(parceiro);
     }
 }

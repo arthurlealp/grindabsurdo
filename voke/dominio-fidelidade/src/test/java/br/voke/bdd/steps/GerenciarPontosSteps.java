@@ -4,6 +4,7 @@ import br.voke.dominio.fidelidade.pontos.ContaPontos;
 import br.voke.dominio.fidelidade.pontos.ContaPontosId;
 import br.voke.dominio.fidelidade.pontos.ContaPontosRepositorio;
 import br.voke.dominio.fidelidade.pontos.ContaPontosServico;
+import br.voke.dominio.fidelidade.pontos.ExpiracaoPontosNotificador;
 import io.cucumber.java.pt.Dado;
 import io.cucumber.java.pt.E;
 import io.cucumber.java.pt.Então;
@@ -29,10 +30,10 @@ public class GerenciarPontosSteps {
     private final ContextoFidelidade ctx;
     private final UUID participanteId = UUID.randomUUID();
     private final ContaPontosRepositorio repositorio = criarRepositorioEmMemoria();
-    private final ContaPontosServico servico = new ContaPontosServico(repositorio);
+    private final ExpiracaoPontosNotificador notificador = mock(ExpiracaoPontosNotificador.class);
+    private final ContaPontosServico servico = new ContaPontosServico(repositorio, notificador);
     private boolean presencaConfirmada;
     private boolean eventoEncerrado;
-    private boolean participanteNotificadoExpiracao;
 
     public GerenciarPontosSteps(ContextoFidelidade ctx) {
         this.ctx = ctx;
@@ -179,14 +180,12 @@ public class GerenciarPontosSteps {
     public void participanteComPontosExpirados() {
         ctx.conta = servico.obterOuCriar(participanteId);
         ctx.excecao = null;
-        participanteNotificadoExpiracao = false;
         servico.creditarPorPresenca(participanteId, 100, true, true);
     }
 
     @Quando("o sistema processa a expiração")
     public void oSistemaProcessaExpiracao() {
         servico.expirarPontos(participanteId, 100);
-        participanteNotificadoExpiracao = true;
     }
 
     @Então("os pontos expirados são removidos do saldo do participante")
@@ -197,6 +196,6 @@ public class GerenciarPontosSteps {
 
     @E("o participante é notificado sobre a expiração")
     public void participanteNotificado() {
-        assertTrue(participanteNotificadoExpiracao);
+        verify(notificador).notificarExpiracao(participanteId, 100);
     }
 }

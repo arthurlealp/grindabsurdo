@@ -47,4 +47,9 @@ public class GrupoEventoServico {
                 .orElseThrow(() -> new IllegalArgumentException("Grupo não encontrado"));
         repositorio.remover(grupoId);
     }
+    public void removerPorEvento(UUID eventoId) {
+        GrupoEvento grupo = repositorio.buscarPorEventoId(eventoId)
+                .orElseThrow(() -> new IllegalArgumentException("Grupo nao encontrado"));
+        repositorio.remover(grupo.getId());
+    }
 }

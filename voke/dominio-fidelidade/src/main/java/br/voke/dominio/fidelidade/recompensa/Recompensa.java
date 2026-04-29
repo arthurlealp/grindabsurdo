@@ -20,6 +20,7 @@ public class Recompensa extends EntidadeBase<RecompensaId> {
     private final UUID organizadorId;
     private LocalDateTime ultimaAlteracaoValor;
     private boolean ativa;
+    private boolean resgateEmAndamento;
 
     public Recompensa(RecompensaId id, String nome, String descricao, int custoEmPontos,
                       int estoqueTotal, UUID organizadorId) {
@@ -40,16 +41,30 @@ public class Recompensa extends EntidadeBase<RecompensaId> {
         this.organizadorId = organizadorId;
         this.ultimaAlteracaoValor = LocalDateTime.now();
         this.ativa = true;
+        this.resgateEmAndamento = false;
     }
 
     public void resgatar() {
+        iniciarResgate();
+        concluirResgate();
+    }
+
+    public void iniciarResgate() {
         if (!estaDisponivel()) {
             throw new RecompensaEsgotadaException();
+        }
+        this.resgateEmAndamento = true;
+    }
+
+    public void concluirResgate() {
+        if (!resgateEmAndamento) {
+            throw new IllegalStateException("Nao ha resgate em andamento");
         }
         estoqueResgatado++;
         if (estoqueResgatado >= estoqueTotal) {
             this.ativa = false;
         }
+        this.resgateEmAndamento = false;
     }
 
     public void alterarCusto(int novoCusto) {
@@ -89,4 +104,5 @@ public class Recompensa extends EntidadeBase<RecompensaId> {
     public UUID getOrganizadorId() { return organizadorId; }
     public LocalDateTime getUltimaAlteracaoValor() { return ultimaAlteracaoValor; }
     public boolean isAtiva() { return ativa; }
+    public boolean isResgateEmAndamento() { return resgateEmAndamento; }
 }

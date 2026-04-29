@@ -113,6 +113,18 @@ public class GerenciarOrganizadorSteps {
         } catch (Exception e) { ctx.excecao = e; }
     }
 
+    @Quando("ele informa um CPF que já está vinculado a outra conta no sistema")
+    public void eleInformaCpfJaVinculadoAOutraConta() {
+        try {
+            ctx.servicoOrganizador.cadastrar(new NomeCompleto("Primeiro"), new Cpf("529.982.247-25"),
+                    new Email("primeiro@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(1990, 1, 1)));
+            ctx.organizador = ctx.servicoOrganizador.cadastrar(new NomeCompleto("Segundo"), new Cpf("529.982.247-25"),
+                    new Email("segundo@email.com"), new Senha("Senha@123"),
+                    new DataNascimento(LocalDate.of(1991, 1, 1)));
+        } catch (Exception e) { ctx.excecao = e; }
+    }
+
     @Dado("que o organizador está autenticado no sistema")
     public void queOOrganizadorEstaAutenticado() {
         inicializar();

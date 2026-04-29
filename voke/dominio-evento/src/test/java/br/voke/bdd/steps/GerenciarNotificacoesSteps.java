@@ -32,6 +32,7 @@ public class GerenciarNotificacoesSteps {
     private NotificacaoRepositorio repositorio;
     private NotificacaoServico servico;
     private Notificacao notificacao;
+    private UUID participanteId;
 
     public GerenciarNotificacoesSteps(ContextoEvento contexto) {
         this.contexto = contexto;
@@ -52,6 +53,12 @@ public class GerenciarNotificacoesSteps {
                     .filter(notificacao -> notificacao.getEventoId().equals(eventoId))
                     .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         }).when(mockRepositorio).buscarPorEventoId(any(UUID.class));
+        doAnswer(invocation -> {
+            UUID participante = invocation.getArgument(0);
+            return banco.values().stream()
+                    .filter(notificacao -> notificacao.foiEnviadaPara(participante))
+                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        }).when(mockRepositorio).buscarPorParticipanteId(any(UUID.class));
         doAnswer(invocation -> {
             banco.remove(invocation.getArgument(0));
             return null;
@@ -161,7 +168,8 @@ public class GerenciarNotificacoesSteps {
         repositorio = criarRepo();
         servico = new NotificacaoServico(repositorio);
         contexto.excecao = null;
-        notificacao = servico.enviar(UUID.randomUUID(), "Antes do cancelamento", true);
+        participanteId = UUID.randomUUID();
+        notificacao = servico.enviar(UUID.randomUUID(), "Antes do cancelamento", true, java.util.Set.of(participanteId));
     }
 
     @E("o evento foi cancelado após o envio de notificações")
@@ -171,11 +179,12 @@ public class GerenciarNotificacoesSteps {
 
     @Quando("o ex-inscrito acessa suas notificações")
     public void exInscritoAcessaNotificacoes() {
-        assertFalse(repositorio.buscarPorEventoId(notificacao.getEventoId()).isEmpty());
+        assertFalse(servico.listarPorParticipante(participanteId).isEmpty());
     }
 
     @Então("ele consegue visualizar as notificações enviadas antes do cancelamento")
     public void eleConsegueVisualizar() {
         assertNotNull(notificacao);
+        assertTrue(servico.listarPorParticipante(participanteId).contains(notificacao));
     }
 }
